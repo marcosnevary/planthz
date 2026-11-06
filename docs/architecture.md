@@ -48,6 +48,52 @@ A job only takes the runs that have a runnable status **and** belong to an enabl
 
 A day cannot change while its campaign has an active job, because the worker picks its runs when it starts. Stopping, changing the day and continuing has the same effect.
 
+## Export and import
+
+`transfer.py` writes a campaign to one JSON file and recreates it from that file, so results can be shared with someone on another machine. The pydantic models in that module are the format, both for writing and for validating.
+
+```json
+{
+  "format": "planthz-campaign",
+  "version": 1,
+  "campaign": {"name": "…", "videos_dir": "/abs/path", "ignored_files": [], "created_at": "2026-10-29T12:00:00"},
+  "rois": {"plant_1": {"x": 0, "y": 0, "w": 100, "h": 120}, "plant_2": {"x": 100, "y": 0, "w": 100, "h": 120}},
+  "disabled_days": ["2026-10-30"],
+  "videos": [
+    {
+      "name": "video_20261029_120000.mp4",
+      "path": "/abs/path/2026-10-29/video_20261029_120000.mp4",
+      "day": "2026-10-29",
+      "captured_at": "2026-10-29T12:00:00",
+      "results": [
+        {
+          "plant_id": 1,
+          "roi": {"x": 0, "y": 0, "w": 100, "h": 120},
+          "frequency": 3.0,
+          "amplitude": 12.5,
+          "source": 0,
+          "error": null,
+          "processed_at": "2026-10-29T13:00:00"
+        }
+      ]
+    }
+  ]
+}
+```
+
+`rois` is `null` when the campaign has none. A video has one result per run that was computed, so `results` can hold fewer than two or be empty. Change `VERSION` when an existing reader could no longer understand the file. A file with a higher version is refused and asks the user to update.
+
+**Left out on purpose:**
+
+- Database ids, because each machine assigns its own. Videos are identified by name, as they are by a scan.
+- `on_disk`, which describes one machine. An import checks each video's `path` here instead.
+- The `job` table: a pid and a heartbeat mean nothing elsewhere, and its logs stay in the data folder.
+- Video files and cached frames.
+
+**On a machine without the videos,** a run with a usable result stays `done` or `no_peak`, because `store.run_status` looks at the result before the disk. The analysis, its charts and those runs in `results.csv` therefore match the original exactly. A `failed`, `stale` or `pending` run turns `missing`, since it can only be recomputed from the file, but keeps its stored values and error. The frames, the ROI editor and jobs are unavailable until the videos appear at the same paths. A scan or a started job then finds them and marks them on disk.
+
+**Import is all or nothing:** it runs in one transaction, and any invalid or repeated data leaves the database unchanged. A file whose `videos_dir` already belongs to a campaign is refused, as creating that campaign by hand would be.
+
 ## Frames
 
 `frames.py` caches each extracted frame at full resolution in `~/.planthz/frames`, keyed by video path and position. ROIs are drawn on each request rather than cached, so the picture always shows what the next run would crop. The positions are limited to tenths of the video to keep the cache bounded.
@@ -60,6 +106,9 @@ A day cannot change while its campaign has an active job, because the worker pic
 - **One set of ROIs per campaign:** the same rectangles apply to every video, which keeps the screen to picking a reference day, drawing and saving. A camera that moves during a campaign cannot be handled inside it: the videos after the move would need their own campaign.
 - **Results store the ROI they used:** changing a ROI then invalidates exactly the affected runs, with no manual cleanup.
 - **A disabled day is not a run status:** a status would hide whether a run is pending, failed or stale, which is what the user needs to see when deciding to enable the day again.
+- **JSON export without the videos:** the videos are too large to keep whole even on the sender's disk, while the results of 306 videos take about 240 KB, and the person receiving them usually wants the results. A plain JSON file can be sent by email and inspected, unlike a copy of the database, which would also bring every other campaign.
+- **Exports keep the original absolute paths:** `videos_dir` and `path` are the only link back to the files, and they make an import on the same machine fully working. The cost is that the file reveals the sender's folder names, which the export panel states.
+- **A folder conflict refuses the import instead of merging or renaming:** merging would have to choose between two sets of results for the same run, and a silently renamed folder would break the rule that a folder has one campaign. The user decides by deleting the existing campaign.
 - **Plain SQLite without an ORM:** a handful of tables with one writer at a time.
 - **Charts as inline SVG:** each point links to its video, which turns an odd value into a ROI check in one click.
 - **ROIs drawn by the user, not detected:** this keeps the methodology of the published results. A detected ROI could vary between videos and change the comparison.

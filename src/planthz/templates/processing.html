@@ -15,11 +15,24 @@
       <button type="submit">Procurar vídeos novos</button>
     </form>
   </div>
+  {% if not folder_exists %}
+  <p class="alert">Essa pasta não existe neste computador. Os resultados já calculados continuam disponíveis, mas não é possível ver os quadros nem processar os vídeos.</p>
+  {% endif %}
   {% if ignored %}
   <details>
     <summary>{{ ignored|length }} {{ "arquivo ignorado" if ignored|length == 1 else "arquivos ignorados" }}</summary>
     <ul class="ignored">{% for item in ignored %}<li>{{ item }}</li>{% endfor %}</ul>
   </details>
   {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <h2>Compartilhar</h2>
+      <p class="muted">Baixe um arquivo com os ROIs, os dias desativados e os resultados da campanha, para importar em outro computador. Ele inclui o caminho da pasta, mas não os vídeos.</p>
+    </div>
+    <a class="button" href="/campaigns/{{ campaign.id }}/export.json">Exportar campanha</a>
+  </div>
 </section>
 {% endblock %}
