@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "planthz",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": [
+        "run",
+        "planthz",
+        "--reload"
+      ],
+      "port": 8000
+    }
+  ]
+}

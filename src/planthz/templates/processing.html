@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Processamento · {{ campaign.name }}{% endblock %}
+{% block content %}
+{# Outside #progress: the polling replaces that element, which would erase this message. #}
+{% if delete_error %}<p class="alert error page-alert" role="alert">{{ delete_error }}</p>{% endif %}
+{% include "_progress.html" %}
+
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <h2>Pasta dos vídeos</h2>
+      <p class="path">{{ campaign.videos_dir }}</p>
+    </div>
+    <form method="post" action="/campaigns/{{ campaign.id }}/scan">
+      <button type="submit">Procurar vídeos novos</button>
+    </form>
+  </div>
+  {% if ignored %}
+  <details>
+    <summary>{{ ignored|length }} {{ "arquivo ignorado" if ignored|length == 1 else "arquivos ignorados" }}</summary>
+    <ul class="ignored">{% for item in ignored %}<li>{{ item }}</li>{% endfor %}</ul>
+  </details>
+  {% endif %}
+</section>
+{% endblock %}

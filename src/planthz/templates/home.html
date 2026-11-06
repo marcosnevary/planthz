@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel narrow">
+  <h1>Nova campanha</h1>
+  <p class="muted">Informe a pasta dos vídeos. Eles devem estar separados em pastas por dia, com a data e a hora no nome do arquivo.</p>
+  <pre class="layout-example">campanha/
+├── 2026-10-29/
+│   ├── video_20261029_120503.mp4
+│   └── video_20261029_123503.mp4
+└── 2026-10-30/
+    └── video_20261030_000503.mp4</pre>
+  {% if error %}<p class="alert error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/campaigns" class="stack">
+    <label>Pasta dos vídeos
+      <input name="videos_dir" value="{{ videos_dir }}" placeholder="/Users/voce/videos/campanha" required autofocus spellcheck="false">
+    </label>
+    <label>Nome <span class="muted">(opcional, usa o nome da pasta)</span>
+      <input name="name">
+    </label>
+    <button class="primary" type="submit">Adicionar campanha</button>
+  </form>
+</section>
+
+{% if campaigns %}
+<section class="panel narrow">
+  <h2>Campanhas</h2>
+  <table>
+    <thead><tr><th>Nome</th><th>Pasta</th><th class="num">Vídeos</th><th class="num">Execuções</th></tr></thead>
+    <tbody>
+      {% for item in campaigns %}
+      <tr>
+        <td><a href="/campaigns/{{ item.campaign.id }}">{{ item.campaign.name }}</a></td>
+        <td class="path">{{ item.campaign.videos_dir }}</td>
+        <td class="num">{{ item.n_videos }}</td>
+        <td class="num">{{ item.n_done }} de {{ item.n_runs }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}

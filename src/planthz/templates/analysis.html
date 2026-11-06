@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Análises · {{ campaign.name }}{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <h1>Análises</h1>
+      <p class="muted">Planta 1 e Planta 2, comparadas nos mesmos vídeos. Considera apenas vídeos com resultado válido para as duas plantas.</p>
+    </div>
+    <div class="actions"><a class="button" href="/campaigns/{{ campaign.id }}/results.csv">Baixar results.csv</a></div>
+  </div>
+
+  {% if has_data %}
+  <dl class="stats">
+    <div><dt>Vídeos analisados</dt><dd>{{ analysis.n_videos }}</dd></div>
+    <div><dt>Sem par válido</dt><dd>{{ analysis.n_unpaired_videos }}</dd></div>
+    <div><dt>Execuções sem pico</dt><dd>{{ counts[RunStatus.NO_PEAK] }}</dd></div>
+    <div><dt>Com falha</dt><dd>{{ counts[RunStatus.FAILED] }}</dd></div>
+    <div><dt>Ainda a processar</dt><dd>{{ counts[RunStatus.PENDING] + counts[RunStatus.STALE] }}</dd></div>
+  </dl>
+  {% else %}
+  <p class="alert">Ainda não há vídeos com resultado válido para as duas plantas. <a href="/campaigns/{{ campaign.id }}">Ir para o processamento</a></p>
+  {% endif %}
+</section>
+
+{% if has_data %}
+<section class="panel">
+  <h2>Resumo por planta</h2>
+  <table>
+    <thead><tr><th>Planta</th><th class="num">Média (Hz)</th><th class="num">Mediana (Hz)</th><th class="num">Desvio padrão (Hz)</th><th class="num">Vídeos</th></tr></thead>
+    <tbody>
+      {% for row in summary %}
+      <tr>
+        <td><span class="swatch plant-{{ row.Index }}"></span> Planta {{ row.Index }}</td>
+        <td class="num">{{ row.mean|decimal }}</td>
+        <td class="num">{{ row.median|decimal }}</td>
+        <td class="num">{{ row.std|decimal }}</td>
+        <td class="num">{{ row.size }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h2>Frequência dominante por vídeo</h2>
+  <p class="muted small">Eixos iguais nos dois painéis. Passe o mouse sobre um ponto para ver o valor e clique para abrir o vídeo e conferir o ROI.</p>
+  {% for plant_id in PLANT_IDS %}
+  <h3><span class="swatch plant-{{ plant_id }}"></span> Planta {{ plant_id }}</h3>
+  {{ per_video_charts[plant_id]|safe }}
+  {% endfor %}
+  <p class="axis-caption">Eixo vertical: frequência dominante (Hz). Eixo horizontal: dia da captura.</p>
+</section>
+
+<section class="panel">
+  <h2>Média diária</h2>
+  <div class="legend">
+    <span><span class="swatch plant-1"></span> Planta 1</span>
+    <span><span class="swatch plant-2"></span> Planta 2</span>
+  </div>
+  {{ daily_chart|safe }}
+  <p class="axis-caption">Eixo vertical: frequência dominante média (Hz). Dias sem vídeos interrompem a linha.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Dia</th>
+        <th class="num">Planta 1: média (Hz)</th><th class="num">Desvio (Hz)</th><th class="num">Vídeos</th>
+        <th class="num">Planta 2: média (Hz)</th><th class="num">Desvio (Hz)</th><th class="num">Vídeos</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for day, plants in daily_rows %}
+      <tr>
+        <td>{{ day|day }}</td>
+        {% for plant_id in PLANT_IDS %}
+        <td class="num">{{ plants[plant_id].mean|decimal }}</td>
+        <td class="num">{{ plants[plant_id].std|decimal }}</td>
+        <td class="num">{{ plants[plant_id].size }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}

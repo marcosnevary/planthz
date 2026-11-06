@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Vídeos · {{ campaign.name }}{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>Vídeos</h1>
+  <p class="muted">Confira o ROI aplicado a cada vídeo. O retângulo mostrado é o mesmo que o processamento recorta.</p>
+  {% if not has_rois %}
+    <p class="alert">Nenhum ROI definido ainda. <a href="/campaigns/{{ campaign.id }}/rois">Definir ROIs</a></p>
+  {% endif %}
+  <nav class="day-picker" aria-label="Dias">
+    {% for day, count in days %}
+    <a href="?day={{ day }}" {% if day == selected_day %}aria-current="page"{% endif %}>{{ day[8:10] }}/{{ day[5:7] }} <span class="muted">{{ count }}</span></a>
+    {% endfor %}
+  </nav>
+</section>
+
+<section class="gallery">
+  {% for video in videos %}
+  <a class="video-card" href="/videos/{{ video.id }}">
+    {% if video.on_disk %}
+    <img loading="lazy" src="/videos/{{ video.id }}/frame.jpg?width=480" alt="Quadro de {{ video.name }}" width="480" height="270">
+    {% else %}
+    <img loading="lazy" src="/videos/{{ video.id }}/frame.jpg?width=480" alt="Arquivo ausente" width="480" height="270"
+         onerror="this.replaceWith(Object.assign(document.createElement('div'), {className: 'frame-missing', textContent: 'Arquivo ausente'}))">
+    {% endif %}
+    <div class="video-card-body">
+      <strong>{{ video.captured_at.strftime("%H:%M:%S") }}</strong>
+      {% for run in runs_by_video[video.id] %}
+      <span class="run-line">
+        <span class="swatch plant-{{ run.plant_id }}"></span>
+        {% if run.status == RunStatus.DONE %}{{ run.result.frequency|decimal(2) }} Hz{% else %}<span class="status status-{{ run.status.value }}">{{ STATUS_LABELS[run.status] }}</span>{% endif %}
+      </span>
+      {% endfor %}
+    </div>
+  </a>
+  {% endfor %}
+</section>
+{% endblock %}
