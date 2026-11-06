@@ -262,15 +262,45 @@ def test_a_campaign_cannot_be_deleted_during_its_job(client: TestClient, videos_
     assert client.get(url).status_code == 200
 
 
-def test_sidebar_offers_the_campaign_actions(client: TestClient, videos_dir: Path) -> None:
-    home = client.get("/").text
-    assert "Selecionar campanha" in home
-    assert "Excluir campanha" not in home
+def test_home_opens_the_new_campaign_form_without_campaigns(client: TestClient) -> None:
+    response = client.get("/", follow_redirects=False)
 
+    assert response.status_code == 303
+    assert response.headers["location"] == "/campaigns/new"
+
+
+def test_home_opens_a_campaign_when_there_is_one(client: TestClient, videos_dir: Path) -> None:
+    url = create_campaign(client, videos_dir)
+
+    response = client.get("/", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == url
+
+
+def test_home_returns_to_the_form_after_deleting_the_last_campaign(client: TestClient, videos_dir: Path) -> None:
+    url = create_campaign(client, videos_dir)
+
+    response = client.post(f"{url}/delete")
+
+    assert response.url.path == "/campaigns/new"
+
+
+def test_new_campaign_page_has_no_sidebar_but_lists_the_campaigns(client: TestClient, videos_dir: Path) -> None:
+    assert 'class="sidebar"' not in client.get("/campaigns/new").text
+
+    url = create_campaign(client, videos_dir)
+    page = client.get("/campaigns/new").text
+
+    assert 'class="sidebar"' not in page
+    assert f'<a href="{url}">' in page
+
+
+def test_sidebar_offers_the_campaign_actions(client: TestClient, videos_dir: Path) -> None:
     url = create_campaign(client, videos_dir)
 
     for path in (url, f"{url}/rois", f"{url}/videos", f"{url}/analysis"):
         page = client.get(path).text
         assert f'<a href="{url}" aria-current="page">' in page or f'<a href="{url}" >' in page
-        assert "Nova campanha" in page
+        assert '<a href="/campaigns/new">Nova campanha</a>' in page
         assert f'action="{url}/delete"' in page
