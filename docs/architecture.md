@@ -22,9 +22,10 @@ Only one job runs at a time, across all campaigns.
 | `disabled_day` | Campaign and day | Days are enabled unless listed, so a day found by a new scan starts enabled |
 | `campaign_rois` | Both plants' rectangles | One row per campaign, used for all of its videos |
 | `result` | Frequency, amplitude, source or error, and **the ROI used** | One row per run |
+| `run_history` | Every result ever written, with its ROI and end time | Append-only, filled by a trigger on `result`, which keeps only each run's last attempt. Shown as "Histórico" on the processing page |
 | `job` | Status, counters, pid, heartbeat | |
 
-Scanning never deletes a video. A video that left the disk is marked `on_disk = 0` and keeps its results, because the datasets are too large to keep whole on disk.
+Every campaign page rescans the folder when it loads, as does starting a job; the progress polling does not, since it runs every 2 seconds. Scanning never deletes a video. A video that left the disk is marked `on_disk = 0` and keeps its results, because the datasets are too large to keep whole on disk.
 
 ## Run status
 
@@ -88,6 +89,7 @@ A day cannot change while its campaign has an active job, because the worker pic
 - Database ids, because each machine assigns its own. Videos are identified by name, as they are by a scan.
 - `on_disk`, which describes one machine. An import checks each video's `path` here instead.
 - The `job` table: a pid and a heartbeat mean nothing elsewhere, and its logs stay in the data folder.
+- `run_history`: nothing computed from a campaign depends on it, so the format stays at this version. Each imported result becomes the first entry of its run's history.
 - Video files and cached frames.
 
 **On a machine without the videos,** a run with a usable result stays `done` or `no_peak`, because `store.run_status` looks at the result before the disk. The analysis, its charts and those runs in `results.csv` therefore match the original exactly. A `failed`, `stale` or `pending` run turns `missing`, since it can only be recomputed from the file, but keeps its stored values and error. The frames, the ROI editor and jobs are unavailable until the videos appear at the same paths. A scan or a started job then finds them and marks them on disk.

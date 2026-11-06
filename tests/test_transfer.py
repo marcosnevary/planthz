@@ -24,15 +24,6 @@ def client() -> Iterator[TestClient]:
         yield test_client
 
 
-@pytest.fixture
-def own_videos(videos_dir: Path, tmp_path: Path) -> Path:
-    """A copy these tests can delete, standing for the folder of the machine that exports."""
-    copy = tmp_path / "semana2"
-    shutil.copytree(videos_dir, copy)
-
-    return copy
-
-
 def campaign_id_of(url: str) -> int:
     return int(url.rsplit("/", 1)[1])
 
@@ -156,14 +147,13 @@ def test_results_survive_the_actions_of_a_machine_without_the_videos(
     analysis = main_of(client.get(f"{new_url}/analysis").text)
 
     processing = client.get(new_url).text
-    assert "não existe neste computador" in processing
     assert f'hx-post="{new_url}/jobs"' not in processing
 
     assert client.get(f"{new_url}/videos?day={DAY}").status_code == 200
-    assert "Nenhum vídeo da campanha está no disco" in client.get(f"{new_url}/rois").text
+    assert client.get(f"{new_url}/rois", follow_redirects=False).headers["location"] == new_url
+    assert f'href="{new_url}/rois"' not in processing
     assert client.get(f"/videos/{first_video_id(client, new_url)}/frame.jpg").status_code == 404
 
-    client.post(f"{new_url}/scan")
     start = client.post(f"{new_url}/jobs")
 
     assert "Não há execuções a processar" in start.text
@@ -208,7 +198,6 @@ def test_import_finds_the_videos_that_are_on_this_machine(
     move_to_another_machine(monkeypatch, tmp_path)
     new_url = import_file(client, export).headers["location"].removesuffix("/analysis")
 
-    assert "não existe neste computador" not in client.get(new_url).text
     assert client.get(f"/videos/{first_video_id(client, new_url)}/frame.jpg").status_code == 200
 
     client.post(f"{new_url}/rois", data={**ROI_FORM, "plant_1_h": 100})

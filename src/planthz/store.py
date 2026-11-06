@@ -99,6 +99,10 @@ def ignored_files(campaign: sqlite3.Row) -> list[str]:
     return json.loads(campaign["ignored_files"])
 
 
+def campaigns_with_videos_on_disk(db: sqlite3.Connection) -> set[int]:
+    return {row["campaign_id"] for row in db.execute("SELECT DISTINCT campaign_id FROM video WHERE on_disk = 1")}
+
+
 def sync_videos(db: sqlite3.Connection, campaign_id: int) -> None:
     """Bring the video list in line with the folder.
 
@@ -107,7 +111,8 @@ def sync_videos(db: sqlite3.Connection, campaign_id: int) -> None:
     """
     campaign = get_campaign(db, campaign_id)
     assert campaign is not None
-    scan = scan_videos(Path(campaign["videos_dir"]))
+    videos_dir = Path(campaign["videos_dir"])
+    scan = scan_videos(videos_dir)
 
     db.execute("UPDATE video SET on_disk = 0 WHERE campaign_id = ?", (campaign_id,))
     db.executemany(
@@ -117,10 +122,14 @@ def sync_videos(db: sqlite3.Connection, campaign_id: int) -> None:
         """,
         [(campaign_id, v.name, str(v.path), v.day, v.captured_at.isoformat()) for v in scan.videos],
     )
-    db.execute(
-        "UPDATE campaign SET ignored_files = ? WHERE id = ?",
-        (json.dumps(scan.ignored, ensure_ascii=False), campaign_id),
-    )
+
+    # Without the folder the scan learned nothing about the skipped files, and an imported campaign must keep them.
+    if videos_dir.is_dir():
+        db.execute(
+            "UPDATE campaign SET ignored_files = ? WHERE id = ?",
+            (json.dumps(scan.ignored, ensure_ascii=False), campaign_id),
+        )
+
     db.commit()
 
 
@@ -313,14 +322,13 @@ def _upsert_result(
     )
 
 
-def latest_runs(db: sqlite3.Connection, campaign_id: int, limit: int = 8) -> list[sqlite3.Row]:
+def run_history(db: sqlite3.Connection, campaign_id: int) -> list[sqlite3.Row]:
     return db.execute(
         """
-        SELECT video.id AS video_id, video.name, result.plant_id, result.frequency, result.processed_at
-        FROM result JOIN video ON video.id = result.video_id
+        SELECT video.id AS video_id, video.name, run_history.plant_id, run_history.frequency, run_history.processed_at
+        FROM run_history JOIN video ON video.id = run_history.video_id
         WHERE video.campaign_id = ?
-        ORDER BY result.processed_at DESC, video.captured_at DESC, result.plant_id DESC
-        LIMIT ?
+        ORDER BY run_history.processed_at DESC, run_history.id DESC
         """,
-        (campaign_id, limit),
+        (campaign_id,),
     ).fetchall()

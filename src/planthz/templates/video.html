@@ -14,7 +14,7 @@
   </div>
 
   {% if not has_rois %}
-    <p class="alert">Nenhum ROI definido ainda. <a href="/campaigns/{{ campaign.id }}/rois?video={{ video.id }}">Definir ROIs</a></p>
+    <p class="alert">Nenhum ROI definido ainda.{% if campaign.id in campaigns_with_videos_on_disk %} <a href="/campaigns/{{ campaign.id }}/rois?video={{ video.id }}">Definir ROIs</a>{% endif %}</p>
   {% endif %}
 
   <img class="video-frame" id="video-frame" src="/videos/{{ video.id }}/frame.jpg" alt="Quadro do vídeo com os ROIs desenhados"
