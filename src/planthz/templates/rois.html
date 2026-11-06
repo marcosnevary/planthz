@@ -4,7 +4,6 @@
 <section class="panel">
   {% if error %}<p class="alert error" role="alert">{{ error }}</p>{% endif %}
 
-  {% if reference %}
   <div class="roi-editor">
     <div class="roi-stage-column">
       <div class="roi-stage" id="roi-stage">
@@ -55,9 +54,6 @@
       <p class="muted small">Resultados calculados com um ROI que mudou são refeitos no próximo processamento.</p>
     </form>
   </div>
-  {% else %}
-  <p class="alert">Nenhum vídeo da campanha está no disco para servir de referência.</p>
-  {% endif %}
 </section>
 <script src="/static/roi_editor.js" defer></script>
 {% endblock %}

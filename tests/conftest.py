@@ -1,3 +1,4 @@
+import shutil
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -46,3 +47,12 @@ def videos_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
         write_video(root / relative)
 
     return root
+
+
+@pytest.fixture
+def own_videos(videos_dir: Path, tmp_path: Path) -> Path:
+    """A copy a test can change, since videos_dir is shared by the whole session."""
+    copy = tmp_path / "semana2"
+    shutil.copytree(videos_dir, copy)
+
+    return copy

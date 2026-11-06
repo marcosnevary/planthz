@@ -1,6 +1,7 @@
 import sqlite3
 from collections import Counter, defaultdict
 from collections.abc import Iterator
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any
 from urllib.parse import quote
@@ -20,15 +21,29 @@ from planthz.store import RunStatus
 
 PACKAGE_DIR = Path(__file__).parent
 
+
+class RevalidatedStaticFiles(StaticFiles):
+    """Without this header browsers guess how long to reuse a file, and pair new pages with old scripts."""
+
+    def file_response(self, *args: Any, **kwargs: Any) -> Response:
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+
+        return response
+
+
 app = FastAPI(title="planthz")
-app.mount("/static", StaticFiles(directory=PACKAGE_DIR / "static"), name="static")
+app.mount("/static", RevalidatedStaticFiles(directory=PACKAGE_DIR / "static"), name="static")
 
 
 def _sidebar_context(_: Request) -> dict[str, Any]:
     db = connect()
 
     try:
-        return {"all_campaigns": store.list_campaigns(db)}
+        return {
+            "all_campaigns": store.list_campaigns(db),
+            "campaigns_with_videos_on_disk": store.campaigns_with_videos_on_disk(db),
+        }
     finally:
         db.close()
 
@@ -79,6 +94,7 @@ def duration(seconds: float | None) -> str:
 templates.env.filters["decimal"] = decimal
 templates.env.filters["duration"] = duration
 templates.env.filters["day"] = lambda day: f"{day[8:10]}/{day[5:7]}/{day[:4]}"
+templates.env.filters["moment"] = lambda moment: datetime.fromisoformat(moment).strftime("%d/%m/%Y %H:%M:%S")
 templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 templates.env.globals["JOB_LABELS"] = JOB_LABELS
 templates.env.globals["RunStatus"] = RunStatus
@@ -111,6 +127,13 @@ def require_campaign(db: sqlite3.Connection, campaign_id: int) -> sqlite3.Row:
         raise HTTPException(404, "Campanha não encontrada.")
 
     return campaign
+
+
+def require_synced_campaign(db: sqlite3.Connection, campaign_id: int) -> sqlite3.Row:
+    require_campaign(db, campaign_id)
+    store.sync_videos(db, campaign_id)
+
+    return require_campaign(db, campaign_id)
 
 
 def require_video(db: sqlite3.Connection, video_id: int) -> store.Video:
@@ -265,14 +288,14 @@ def _progress_context(db: sqlite3.Connection, campaign: sqlite3.Row, error: str 
         "seconds_left": jobs.seconds_left(job) if job and is_active else None,
         "blocked_by_other_job": other_job is not None and other_job["campaign_id"] != campaign["id"],
         "has_rois": store.get_rois(db, campaign["id"]) is not None,
-        "latest": store.latest_runs(db, campaign["id"]),
+        "history": store.run_history(db, campaign["id"]),
         "error": error,
     }
 
 
 @app.get("/campaigns/{campaign_id}", response_class=HTMLResponse)
 def processing_page(request: Request, db: Db, campaign_id: int) -> Response:
-    return _processing_page(request, db, require_campaign(db, campaign_id))
+    return _processing_page(request, db, require_synced_campaign(db, campaign_id))
 
 
 def _processing_page(
@@ -285,7 +308,6 @@ def _processing_page(
             **_progress_context(db, campaign),
             "tab": "processing",
             "ignored": store.ignored_files(campaign),
-            "folder_exists": Path(campaign["videos_dir"]).is_dir(),
             "delete_error": delete_error,
         },
         status_code=409 if delete_error else 200,
@@ -339,14 +361,6 @@ def set_day_enabled(request: Request, db: Db, campaign_id: int, day: str, enable
     return templates.TemplateResponse(request, "_progress.html", _progress_context(db, campaign, error))
 
 
-@app.post("/campaigns/{campaign_id}/scan")
-def rescan(db: Db, campaign_id: int) -> Response:
-    require_campaign(db, campaign_id)
-    store.sync_videos(db, campaign_id)
-
-    return RedirectResponse(f"/campaigns/{campaign_id}", status_code=303)
-
-
 # --- ROIs --------------------------------------------------------------------------------------
 
 
@@ -360,6 +374,10 @@ def _rois_page(
 ) -> Response:
     on_disk = [video for video in store.list_videos(db, campaign["id"]) if video.on_disk]
     reference = next((video for video in on_disk if video.id == video_id), on_disk[0] if on_disk else None)
+
+    if reference is None:
+        return RedirectResponse(f"/campaigns/{campaign['id']}", status_code=303)
+
     form = submitted if submitted is not None else _rois_form(store.get_rois(db, campaign["id"]))
 
     first_per_day: dict[str, store.Video] = {}
@@ -399,7 +417,7 @@ def _rois_form(plants: dict[int, Roi] | None) -> dict[str, Any]:
 
 @app.get("/campaigns/{campaign_id}/rois", response_class=HTMLResponse)
 def rois_page(request: Request, db: Db, campaign_id: int, video: int | None = None) -> Response:
-    return _rois_page(request, db, require_campaign(db, campaign_id), video)
+    return _rois_page(request, db, require_synced_campaign(db, campaign_id), video)
 
 
 @app.post("/campaigns/{campaign_id}/rois")
@@ -445,7 +463,7 @@ def save_rois(
 
 @app.get("/campaigns/{campaign_id}/videos", response_class=HTMLResponse)
 def videos_page(request: Request, db: Db, campaign_id: int, day: str | None = None) -> Response:
-    campaign = require_campaign(db, campaign_id)
+    campaign = require_synced_campaign(db, campaign_id)
     videos = store.list_videos(db, campaign_id)
     days = Counter(video.day for video in videos)
     selected_day = day if day in days else (min(days) if days else None)
@@ -472,8 +490,8 @@ def videos_page(request: Request, db: Db, campaign_id: int, day: str | None = No
 
 @app.get("/videos/{video_id}", response_class=HTMLResponse)
 def video_page(request: Request, db: Db, video_id: int) -> Response:
+    campaign = require_synced_campaign(db, require_video(db, video_id).campaign_id)
     video = require_video(db, video_id)
-    campaign = require_campaign(db, video.campaign_id)
     previous_id, next_id = store.neighbor_videos(db, video)
     runs = [run for run in store.list_runs(db, video.campaign_id, video.day) if run.video.id == video_id]
 
@@ -518,7 +536,7 @@ def video_frame(
 
 @app.get("/campaigns/{campaign_id}/analysis", response_class=HTMLResponse)
 def analysis_page(request: Request, db: Db, campaign_id: int) -> Response:
-    campaign = require_campaign(db, campaign_id)
+    campaign = require_synced_campaign(db, campaign_id)
     runs = store.list_runs(db, campaign_id)
     result = analysis_module.build_analysis(runs)
     has_data = not result.rows.empty

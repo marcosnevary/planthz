@@ -37,3 +37,24 @@ def test_older_database_keeps_the_latest_roi_segment_of_each_campaign() -> None:
     assert store.get_rois(db, 1) == {1: Roi(3, 0, 10, 10), 2: Roi(20, 0, 10, 10)}
     assert db.execute("SELECT 1 FROM sqlite_master WHERE name = 'roi_segment'").fetchone() is None
     db.close()
+
+
+def test_older_database_starts_the_history_from_its_results() -> None:
+    old = sqlite3.connect(data_dir() / "planthz.db")
+    old.executescript(SCHEMA)
+    old.executescript("DROP TRIGGER result_history; DROP TABLE run_history;")
+    old.execute("INSERT INTO campaign (id, name, videos_dir, created_at) VALUES (1, 'a', '/a', 'x')")
+    old.execute("INSERT INTO video VALUES (1, 1, 'v.mp4', '/a/v.mp4', '2026-10-29', '2026-10-29T00:00:00', 1)")
+    old.execute(
+        "INSERT INTO result VALUES (1, 1, 0, 0, 10, 10, 3.0, 1.0, 0, NULL, ?)",
+        ("2026-10-29T12:00:00",),
+    )
+    old.commit()
+    old.close()
+
+    db = connect()
+
+    assert [(row["frequency"], row["processed_at"]) for row in store.run_history(db, 1)] == [
+        (3.0, "2026-10-29T12:00:00")
+    ]
+    db.close()

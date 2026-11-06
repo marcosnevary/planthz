@@ -57,6 +57,32 @@ CREATE TABLE IF NOT EXISTS result (
     PRIMARY KEY (video_id, plant_id)
 );
 
+CREATE TABLE IF NOT EXISTS run_history (
+    id INTEGER PRIMARY KEY,
+    video_id INTEGER NOT NULL REFERENCES video(id) ON DELETE CASCADE,
+    plant_id INTEGER NOT NULL,
+    roi_x INTEGER NOT NULL,
+    roi_y INTEGER NOT NULL,
+    roi_w INTEGER NOT NULL,
+    roi_h INTEGER NOT NULL,
+    frequency REAL,
+    amplitude REAL,
+    source INTEGER,
+    error TEXT,
+    processed_at TEXT NOT NULL
+);
+
+-- A trigger so that no way of writing a result, now or later, can skip the history.
+CREATE TRIGGER IF NOT EXISTS result_history AFTER INSERT ON result
+BEGIN
+    INSERT INTO run_history (
+        video_id, plant_id, roi_x, roi_y, roi_w, roi_h, frequency, amplitude, source, error, processed_at
+    ) VALUES (
+        NEW.video_id, NEW.plant_id, NEW.roi_x, NEW.roi_y, NEW.roi_w, NEW.roi_h,
+        NEW.frequency, NEW.amplitude, NEW.source, NEW.error, NEW.processed_at
+    );
+END;
+
 CREATE TABLE IF NOT EXISTS job (
     id INTEGER PRIMARY KEY,
     campaign_id INTEGER NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
@@ -104,6 +130,23 @@ def _migrate_roi_segments(connection: sqlite3.Connection) -> None:
         connection.execute("DROP TABLE roi_segment")
 
 
+def _backfill_run_history(connection: sqlite3.Connection) -> None:
+    """Start the history of older databases from their results, which only hold each run's last attempt."""
+    with connection:
+        # One statement, because the web server and the worker can both open an older database at once.
+        connection.execute(
+            """
+            INSERT INTO run_history (
+                video_id, plant_id, roi_x, roi_y, roi_w, roi_h, frequency, amplitude, source, error, processed_at
+            )
+            SELECT video_id, plant_id, roi_x, roi_y, roi_w, roi_h, frequency, amplitude, source, error, processed_at
+            FROM result
+            WHERE NOT EXISTS (SELECT 1 FROM run_history)
+            ORDER BY processed_at
+            """
+        )
+
+
 def connect() -> sqlite3.Connection:
     path = data_dir() / "planthz.db"
     # check_same_thread off because FastAPI may run a request's dependency and route on different threads.
@@ -116,6 +159,7 @@ def connect() -> sqlite3.Connection:
         connection.execute("PRAGMA journal_mode = WAL")
         connection.executescript(SCHEMA)
         _migrate_roi_segments(connection)
+        _backfill_run_history(connection)
         _initialized.add(path)
 
     return connection

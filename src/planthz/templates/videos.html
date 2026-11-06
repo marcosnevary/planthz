@@ -1,18 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Vídeos · {{ campaign.name }}{% endblock %}
 {% block content %}
-<section class="panel">
-  <h1>Vídeos</h1>
-  <p class="muted">Confira o ROI aplicado a cada vídeo. O retângulo mostrado é o mesmo que o processamento recorta.</p>
-  {% if not has_rois %}
-    <p class="alert">Nenhum ROI definido ainda. <a href="/campaigns/{{ campaign.id }}/rois">Definir ROIs</a></p>
-  {% endif %}
-  <nav class="day-picker" aria-label="Dias">
-    {% for day, count in days %}
-    <a href="?day={{ day }}" {% if day == selected_day %}aria-current="page"{% endif %}>{{ day[8:10] }}/{{ day[5:7] }} <span class="muted">{{ count }}</span></a>
-    {% endfor %}
-  </nav>
-</section>
+{% if not has_rois %}
+<p class="alert page-alert">Nenhum ROI definido ainda.{% if campaign.id in campaigns_with_videos_on_disk %} <a href="/campaigns/{{ campaign.id }}/rois">Definir ROIs</a>{% endif %}</p>
+{% endif %}
+<nav class="day-picker" aria-label="Dias">
+  {% for day, count in days %}
+  <a href="?day={{ day }}" {% if day == selected_day %}aria-current="page"{% endif %}>{{ day[8:10] }}/{{ day[5:7] }} <span class="muted">{{ count }}</span></a>
+  {% endfor %}
+</nav>
 
 <section class="gallery">
   {% for video in videos %}

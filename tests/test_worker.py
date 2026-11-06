@@ -168,6 +168,29 @@ def test_changing_a_plants_roi_makes_only_its_results_stale(db: sqlite3.Connecti
     assert counts(db, campaign_id) == {RunStatus.STALE: 3, RunStatus.DONE: 3}
 
 
+def test_history_keeps_the_attempts_a_new_result_replaces(db: sqlite3.Connection, videos_dir: Path) -> None:
+    campaign_id = make_campaign(db, videos_dir)
+    run_job_in_process(db, campaign_id)
+
+    store.save_rois(db, campaign_id, {**PLANTS, 1: Roi(0, 0, WIDTH // 2, HEIGHT - 10)})
+    run_job_in_process(db, campaign_id)
+
+    history = store.run_history(db, campaign_id)
+    assert db.execute("SELECT count(*) FROM result").fetchone()[0] == 6
+    assert len(history) == 9
+    assert [row["plant_id"] for row in history[:3]] == [1, 1, 1]
+    assert [row["processed_at"] for row in history] == sorted((row["processed_at"] for row in history), reverse=True)
+
+
+def test_deleting_a_campaign_deletes_its_history(db: sqlite3.Connection, videos_dir: Path) -> None:
+    campaign_id = make_campaign(db, videos_dir)
+    run_job_in_process(db, campaign_id)
+
+    store.delete_campaign(db, campaign_id)
+
+    assert db.execute("SELECT count(*) FROM run_history").fetchone()[0] == 0
+
+
 def test_video_that_left_the_disk_keeps_its_result(db: sqlite3.Connection, videos_dir: Path, tmp_path: Path) -> None:
     root = tmp_path / "videos"
     shutil.copytree(videos_dir, root)

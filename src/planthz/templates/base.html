@@ -12,30 +12,39 @@
   <aside class="sidebar">
     <a class="brand" href="/">planthz</a>
 
-    <details class="campaign-menu">
-      <summary class="button">{{ campaign.name }}</summary>
-      <div class="campaign-menu-body">
-        <nav aria-label="Campanhas">
-          {% for item in all_campaigns %}
-          <a href="/campaigns/{{ item.id }}" {% if item.id == campaign.id %}aria-current="page"{% endif %}>{{ item.name }}</a>
-          {% endfor %}
-        </nav>
-        <div class="campaign-actions">
-          <a href="/campaigns/new">Nova campanha</a>
-          <form method="post" action="/campaigns/{{ campaign.id }}/delete"
-                onsubmit="return confirm('Excluir esta campanha, com seus ROIs e resultados? Os vídeos não são apagados.')">
-            <button class="danger" type="submit">Excluir campanha</button>
-          </form>
-        </div>
-      </div>
-    </details>
-
     <nav class="sidebar-nav" aria-label="Seções da campanha">
       <a href="/campaigns/{{ campaign.id }}" {% if tab == "processing" %}aria-current="page"{% endif %}>Processamento</a>
+      {% if campaign.id in campaigns_with_videos_on_disk %}
       <a href="/campaigns/{{ campaign.id }}/rois" {% if tab == "rois" %}aria-current="page"{% endif %}>ROIs</a>
+      {% else %}
+      <a aria-disabled="true">ROIs</a>
+      {% endif %}
       <a href="/campaigns/{{ campaign.id }}/videos" {% if tab == "videos" %}aria-current="page"{% endif %}>Vídeos</a>
       <a href="/campaigns/{{ campaign.id }}/analysis" {% if tab == "analysis" %}aria-current="page"{% endif %}>Análises</a>
     </nav>
+
+    <div class="sidebar-foot">
+      <a class="button" href="/campaigns/{{ campaign.id }}/export.json"
+         title="Baixe um arquivo com os ROIs, os dias desativados e os resultados da campanha, para importar em outro computador. Ele inclui o caminho da pasta, mas não os vídeos.">Exportar campanha</a>
+      <a class="button" href="/campaigns/{{ campaign.id }}/results.csv">Baixar results.csv</a>
+      <details class="campaign-menu">
+        <summary class="button"><span>{{ campaign.name }} <span class="path">{{ campaign.videos_dir }}</span></span></summary>
+        <div class="campaign-menu-body">
+          <nav aria-label="Campanhas">
+            {% for item in all_campaigns %}
+            <a href="/campaigns/{{ item.id }}" {% if item.id == campaign.id %}aria-current="page"{% endif %}>{{ item.name }}</a>
+            {% endfor %}
+          </nav>
+          <div class="campaign-actions">
+            <a href="/campaigns/new">Nova campanha</a>
+            <form method="post" action="/campaigns/{{ campaign.id }}/delete"
+                  onsubmit="return confirm('Excluir esta campanha, com seus ROIs e resultados? Os vídeos não são apagados.')">
+              <button class="danger" type="submit">Excluir campanha</button>
+            </form>
+          </div>
+        </div>
+      </details>
+    </div>
   </aside>
   {% endblock %}
   <main>

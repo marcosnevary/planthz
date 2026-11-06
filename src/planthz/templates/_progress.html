@@ -37,7 +37,7 @@
       <p class="alert">Outra campanha está em processamento. Só um processamento roda por vez.</p>
     {% endif %}
     {% if not has_rois %}
-      <p class="alert">Desenhe os ROIs das plantas antes de processar. <a href="/campaigns/{{ campaign.id }}/rois">Definir ROIs</a></p>
+      <p class="alert">Desenhe os ROIs das plantas antes de processar.{% if campaign.id in campaigns_with_videos_on_disk %} <a href="/campaigns/{{ campaign.id }}/rois">Definir ROIs</a>{% endif %}</p>
     {% endif %}
     {% if n_stale_to_redo %}
       <p class="alert">{{ n_stale_to_redo }} {{ "resultado foi calculado" if n_stale_to_redo == 1 else "resultados foram calculados" }} com um ROI que mudou e {{ "será refeito" if n_stale_to_redo == 1 else "serão refeitos" }}.</p>
@@ -51,51 +51,60 @@
   </section>
 
   <section class="panel">
-    <h2>Por dia</h2>
-    <p class="muted">O processamento ignora os dias desativados. Os resultados que eles já têm são mantidos.</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Ativo</th><th>Dia</th><th class="num">Vídeos</th><th class="num">Concluídas</th>
-          <th class="num">Pendentes</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in days %}
-        <tr {% if not row.enabled %}class="day-disabled"{% endif %}>
-          <td>
-            <input type="checkbox" id="day-enabled-{{ row.day }}" aria-label="Ativar {{ row.day|day }}"
-                   {% if row.enabled %}checked{% endif %}
-                   {% if job_active %}disabled title="Pare o processamento para alterar"{% endif %}
-                   hx-post="/campaigns/{{ campaign.id }}/days/{{ row.day }}"
-                   hx-vals='{"enabled": {{ "false" if row.enabled else "true" }}}'
-                   hx-target="#progress" hx-swap="outerHTML">
-          </td>
-          <td><a href="/campaigns/{{ campaign.id }}/videos?day={{ row.day }}">{{ row.day|day }}</a></td>
-          <td class="num">{{ row.n_videos }}</td>
-          <td class="num">{{ row.counts[RunStatus.DONE] or "–" }}</td>
-          <td class="num">{{ row.counts[RunStatus.PENDING] or "–" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </section>
+    <div class="tabs" role="tablist" aria-label="Tabelas do processamento">
+      <button type="button" role="tab" id="tab-days" aria-controls="panel-days" aria-selected="true">Dias</button>
+      <button type="button" role="tab" id="tab-history" aria-controls="panel-history" aria-selected="false">Histórico</button>
+    </div>
 
-  {% if latest %}
-  <section class="panel">
-    <h2>Últimas execuções</h2>
-    <table>
-      <thead><tr><th>Vídeo</th><th>Planta</th><th class="num">Frequência (Hz)</th></tr></thead>
-      <tbody>
-        {% for row in latest %}
-        <tr>
-          <td><a href="/videos/{{ row.video_id }}">{{ row.name }}</a></td>
-          <td>Planta {{ row.plant_id }}</td>
-          <td class="num">{{ row.frequency|decimal }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div role="tabpanel" id="panel-days" aria-labelledby="tab-days">
+      <table>
+        <thead>
+          <tr>
+            <th>Ativo</th><th>Dia</th><th class="num">Vídeos</th><th class="num">Concluídas</th>
+            <th class="num">Pendentes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in days %}
+          <tr {% if not row.enabled %}class="day-disabled"{% endif %}>
+            <td>
+              <input type="checkbox" id="day-enabled-{{ row.day }}" aria-label="Ativar {{ row.day|day }}"
+                     {% if row.enabled %}checked{% endif %}
+                     {% if job_active %}disabled title="Pare o processamento para alterar"{% endif %}
+                     hx-post="/campaigns/{{ campaign.id }}/days/{{ row.day }}"
+                     hx-vals='{"enabled": {{ "false" if row.enabled else "true" }}}'
+                     hx-target="#progress" hx-swap="outerHTML">
+            </td>
+            <td><a href="/campaigns/{{ campaign.id }}/videos?day={{ row.day }}">{{ row.day|day }}</a></td>
+            <td class="num">{{ row.n_videos }}</td>
+            <td class="num">{{ row.counts[RunStatus.DONE] or "–" }}</td>
+            <td class="num">{{ row.counts[RunStatus.PENDING] or "–" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div role="tabpanel" id="panel-history" aria-labelledby="tab-history" hidden>
+      {% if history %}
+      <div class="history-list" id="history-list" tabindex="0">
+        <table>
+          <thead><tr><th>Vídeo</th><th>Planta</th><th class="num">Frequência (Hz)</th><th class="num">Fim</th></tr></thead>
+          <tbody>
+            {% for row in history %}
+            <tr>
+              <td><a href="/videos/{{ row.video_id }}">{{ row.name }}</a></td>
+              <td>Planta {{ row.plant_id }}</td>
+              <td class="num">{{ row.frequency|decimal }}</td>
+              <td class="num">{{ row.processed_at|moment }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="muted">Nenhuma execução concluída ainda.</p>
+      {% endif %}
+    </div>
   </section>
-  {% endif %}
 </div>

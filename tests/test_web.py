@@ -1,4 +1,6 @@
 import os
+import re
+import shutil
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -74,6 +76,78 @@ def test_rejects_the_same_folder_twice(client: TestClient, videos_dir: Path) -> 
 
     assert response.status_code == 422
     assert "Já existe" in response.text
+
+
+def add_video(videos_dir: Path) -> None:
+    new_day = videos_dir / "2026-12-25"
+    new_day.mkdir()
+    shutil.copy(next(videos_dir.rglob("*.mp4")), new_day / "video_20261225_120000.mp4")
+
+
+def count_videos(url: str) -> int:
+    db = connect()
+    n_videos = len(store.list_videos(db, int(url.rsplit("/", 1)[1])))
+    db.close()
+
+    return n_videos
+
+
+@pytest.mark.parametrize("page", ["", "/rois", "/videos", "/analysis"])
+def test_campaign_pages_pick_up_new_videos_when_they_load(client: TestClient, own_videos: Path, page: str) -> None:
+    url = create_campaign(client, own_videos)
+    n_videos = count_videos(url)
+    add_video(own_videos)
+
+    assert client.get(f"{url}{page}").status_code == 200
+    assert count_videos(url) == n_videos + 1
+
+
+def test_progress_polling_does_not_scan_the_folder(client: TestClient, own_videos: Path) -> None:
+    url = create_campaign(client, own_videos)
+    n_videos = count_videos(url)
+    add_video(own_videos)
+
+    assert client.get(f"{url}/progress").status_code == 200
+    assert count_videos(url) == n_videos
+
+
+def test_sidebar_links_to_the_rois_while_a_video_is_on_disk(client: TestClient, own_videos: Path) -> None:
+    url = create_campaign(client, own_videos)
+    assert f'href="{url}/rois"' in client.get(url).text.split("<main>")[0]
+
+    shutil.rmtree(own_videos)
+
+    sidebar = client.get(url).text.split("<main>")[0]
+    assert f'href="{url}/rois"' not in sidebar
+    assert 'aria-disabled="true">ROIs' in sidebar
+
+
+def test_sidebar_shows_the_folder_and_the_downloads(client: TestClient, videos_dir: Path) -> None:
+    url = create_campaign(client, videos_dir)
+
+    sidebar = client.get(f"{url}/videos").text.split("<main>")[0]
+
+    assert str(videos_dir) in sidebar
+    assert sidebar.index(f"{url}/export.json") < sidebar.index(f"{url}/results.csv")
+
+
+def test_processing_page_lists_the_history_with_the_end_time(client: TestClient, videos_dir: Path) -> None:
+    url = create_campaign(client, videos_dir)
+    assert "Nenhuma execução concluída" in client.get(url).text
+
+    client.post(f"{url}/rois", data=ROI_FORM)
+    run_batch(url)
+
+    page = client.get(url).text
+    assert '<button type="button" role="tab" id="tab-history"' in page
+    assert page.count('<td><a href="/videos/') == 6
+    assert re.search(r"<td class=\"num\">\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}</td>", page)
+
+
+def test_static_files_are_revalidated_by_the_browser(client: TestClient) -> None:
+    response = client.get("/static/processing.js")
+
+    assert response.headers["cache-control"] == "no-cache"
 
 
 def test_processing_page_asks_for_rois_first(client: TestClient, videos_dir: Path) -> None:
