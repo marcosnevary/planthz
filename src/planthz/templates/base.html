@@ -35,7 +35,7 @@
           <div class="campaign-actions">
             <a href="/campaigns/{{ campaign.id }}/export.json"
                title="Baixe um arquivo com os ROIs, os dias desativados e os resultados da campanha, para importar em outro computador. Ele inclui o caminho da pasta, mas não os vídeos.">Exportar campanha</a>
-            <a href="/campaigns/{{ campaign.id }}/results.csv">Baixar results.csv</a>
+            <a href="/campaigns/{{ campaign.id }}/results.csv">Baixar resultados</a>
             <a href="/campaigns/new">Nova campanha</a>
             <form method="post" action="/campaigns/{{ campaign.id }}/delete"
                   onsubmit="return confirm('Excluir esta campanha, com seus ROIs e resultados? Os vídeos não são apagados.')">
