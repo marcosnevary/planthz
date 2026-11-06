@@ -3,14 +3,15 @@ from collections import Counter, defaultdict
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import quote
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request, Response
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from planthz import analysis as analysis_module
-from planthz import charts, frames, jobs, store
+from planthz import charts, frames, jobs, store, transfer
 from planthz.db import connect
 from planthz.methodology import FREQUENCY_THRESHOLD
 from planthz.rois import PLANT_IDS, Roi, validate_plants
@@ -96,6 +97,13 @@ def get_db() -> Iterator[sqlite3.Connection]:
 Db = Annotated[sqlite3.Connection, Depends(get_db)]
 
 
+def _attachment(campaign: sqlite3.Row, suffix: str) -> dict[str, str]:
+    # Percent-encoded because a folder name can hold anything, and a header only takes Latin-1.
+    file_name = quote(f"{Path(campaign['videos_dir']).name}_{suffix}", safe="")
+
+    return {"Content-Disposition": f"attachment; filename*=UTF-8''{file_name}"}
+
+
 def require_campaign(db: sqlite3.Connection, campaign_id: int) -> sqlite3.Row:
     campaign = store.get_campaign(db, campaign_id)
 
@@ -131,7 +139,11 @@ def new_campaign(request: Request, db: Db) -> Response:
 
 
 def _new_campaign_page(
-    request: Request, db: sqlite3.Connection, error: str | None = None, videos_dir: str = ""
+    request: Request,
+    db: sqlite3.Connection,
+    error: str | None = None,
+    videos_dir: str = "",
+    import_error: str | None = None,
 ) -> Response:
     campaigns = []
 
@@ -149,8 +161,8 @@ def _new_campaign_page(
     return templates.TemplateResponse(
         request,
         "new_campaign.html",
-        {"campaigns": campaigns, "error": error, "videos_dir": videos_dir},
-        status_code=422 if error else 200,
+        {"campaigns": campaigns, "error": error, "videos_dir": videos_dir, "import_error": import_error},
+        status_code=422 if error or import_error else 200,
     )
 
 
@@ -180,6 +192,28 @@ def create_campaign(
     store.sync_videos(db, campaign_id)
 
     return RedirectResponse(f"/campaigns/{campaign_id}", status_code=303)
+
+
+@app.post("/campaigns/import")
+def import_campaign(request: Request, db: Db, file: Annotated[UploadFile, File()]) -> Response:
+    try:
+        campaign_id = transfer.import_campaign(db, file.file.read(transfer.MAX_SIZE + 1))
+    except transfer.ImportRejected as rejected:
+        return _new_campaign_page(request, db, import_error=str(rejected))
+
+    # The results are what an import brings, and its videos are usually on another machine.
+    return RedirectResponse(f"/campaigns/{campaign_id}/analysis", status_code=303)
+
+
+@app.get("/campaigns/{campaign_id}/export.json")
+def export_campaign(db: Db, campaign_id: int) -> Response:
+    campaign = require_campaign(db, campaign_id)
+
+    return Response(
+        transfer.export_campaign(db, campaign_id),
+        media_type="application/json",
+        headers=_attachment(campaign, "campaign.json"),
+    )
 
 
 @app.post("/campaigns/{campaign_id}/delete")
@@ -251,6 +285,7 @@ def _processing_page(
             **_progress_context(db, campaign),
             "tab": "processing",
             "ignored": store.ignored_files(campaign),
+            "folder_exists": Path(campaign["videos_dir"]).is_dir(),
             "delete_error": delete_error,
         },
         status_code=409 if delete_error else 200,
@@ -513,10 +548,9 @@ def analysis_page(request: Request, db: Db, campaign_id: int) -> Response:
 def results_csv(db: Db, campaign_id: int) -> Response:
     campaign = require_campaign(db, campaign_id)
     runs = store.list_runs(db, campaign_id)
-    file_name = f"{Path(campaign['videos_dir']).name}_results.csv"
 
     return Response(
         analysis_module.results_csv(runs),
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{file_name}"'},
+        headers=_attachment(campaign, "results.csv"),
     )

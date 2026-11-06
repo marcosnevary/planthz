@@ -22,6 +22,18 @@
   </form>
 </section>
 
+<section class="panel narrow">
+  <h2>Importar campanha</h2>
+  <p class="muted">Recrie uma campanha a partir de um arquivo exportado no planthz. Os resultados ficam disponíveis mesmo sem os vídeos neste computador.</p>
+  {% if import_error %}<p class="alert error" role="alert">{{ import_error }}</p>{% endif %}
+  <form method="post" action="/campaigns/import" enctype="multipart/form-data" class="stack">
+    <label>Arquivo da campanha
+      <input type="file" name="file" accept=".json,application/json" required>
+    </label>
+    <button type="submit">Importar campanha</button>
+  </form>
+</section>
+
 {% if campaigns %}
 <section class="panel narrow">
   <h2>Campanhas</h2>

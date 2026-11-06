@@ -39,6 +39,7 @@ Each frame must show both plants, with plant 1 on the left and plant 2 on the ri
 3. **Processing:** disable the days you want to skip, then start the batch. It keeps running if the page or the server closes, and it can be stopped and continued.
 4. **Videos:** browse the frames of each day with the ROIs drawn on them.
 5. **Analyses:** read the tables and charts, or download `results.csv`.
+6. **Sharing:** "Exportar campanha", on the processing page, downloads one file with the campaign's ROIs, disabled days and results, without the videos. Whoever receives it chooses "Importar campanha" on the new campaign page and can read the tables, charts and `results.csv` without having the videos.
 
 ## Data
 
@@ -64,6 +65,6 @@ uv run pytest
 
 ## Documentation
 
-- [docs/architecture.md](docs/architecture.md): processes, data model and run statuses.
+- [docs/architecture.md](docs/architecture.md): processes, data model, run statuses and the export file.
 - [docs/methodology.md](docs/methodology.md): how a frequency is estimated, and its limitations.
 - [GLOSSARY.md](GLOSSARY.md): domain terms.

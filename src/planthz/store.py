@@ -208,6 +208,11 @@ def get_rois(db: sqlite3.Connection, campaign_id: int) -> dict[int, Roi] | None:
 
 
 def save_rois(db: sqlite3.Connection, campaign_id: int, plants: dict[int, Roi]) -> None:
+    insert_rois(db, campaign_id, plants)
+    db.commit()
+
+
+def insert_rois(db: sqlite3.Connection, campaign_id: int, plants: dict[int, Roi]) -> None:
     p1, p2 = plants[1], plants[2]
     db.execute(
         """
@@ -219,7 +224,6 @@ def save_rois(db: sqlite3.Connection, campaign_id: int, plants: dict[int, Roi]) 
         """,
         (campaign_id, p1.x, p1.y, p1.w, p1.h, p2.x, p2.y, p2.w, p2.h),
     )
-    db.commit()
 
 
 # --- Runs --------------------------------------------------------------------------------------
