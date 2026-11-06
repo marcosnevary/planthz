@@ -81,8 +81,7 @@ p { margin: 0 0 8px; }
 .sidebar-nav a[aria-current="page"]:hover { background: var(--accent); }
 .sidebar-nav a[aria-disabled="true"], .sidebar-nav a[aria-disabled="true"]:hover { background: none; color: var(--ink-muted); opacity: 0.55; cursor: default; }
 
-.sidebar-foot { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
-.sidebar-foot > .button { display: block; overflow-wrap: anywhere; }
+.sidebar-foot { margin-top: auto; }
 
 .campaign-menu { position: relative; }
 .campaign-menu summary {

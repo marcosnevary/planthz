@@ -24,9 +24,6 @@
     </nav>
 
     <div class="sidebar-foot">
-      <a class="button" href="/campaigns/{{ campaign.id }}/export.json"
-         title="Baixe um arquivo com os ROIs, os dias desativados e os resultados da campanha, para importar em outro computador. Ele inclui o caminho da pasta, mas não os vídeos.">Exportar campanha</a>
-      <a class="button" href="/campaigns/{{ campaign.id }}/results.csv">Baixar results.csv</a>
       <details class="campaign-menu">
         <summary class="button"><span>{{ campaign.name }} <span class="path">{{ campaign.videos_dir }}</span></span></summary>
         <div class="campaign-menu-body">
@@ -36,6 +33,9 @@
             {% endfor %}
           </nav>
           <div class="campaign-actions">
+            <a href="/campaigns/{{ campaign.id }}/export.json"
+               title="Baixe um arquivo com os ROIs, os dias desativados e os resultados da campanha, para importar em outro computador. Ele inclui o caminho da pasta, mas não os vídeos.">Exportar campanha</a>
+            <a href="/campaigns/{{ campaign.id }}/results.csv">Baixar resultados</a>
             <a href="/campaigns/new">Nova campanha</a>
             <form method="post" action="/campaigns/{{ campaign.id }}/delete"
                   onsubmit="return confirm('Excluir esta campanha, com seus ROIs e resultados? Os vídeos não são apagados.')">
