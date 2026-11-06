@@ -122,13 +122,17 @@ def test_sidebar_links_to_the_rois_while_a_video_is_on_disk(client: TestClient, 
     assert 'aria-disabled="true">ROIs' in sidebar
 
 
-def test_sidebar_shows_the_folder_and_the_downloads(client: TestClient, videos_dir: Path) -> None:
+def test_campaign_menu_shows_the_folder_and_holds_the_downloads(client: TestClient, videos_dir: Path) -> None:
     url = create_campaign(client, videos_dir)
 
     sidebar = client.get(f"{url}/videos").text.split("<main>")[0]
+    before_menu, menu = sidebar.split('<details class="campaign-menu">')
 
-    assert str(videos_dir) in sidebar
-    assert sidebar.index(f"{url}/export.json") < sidebar.index(f"{url}/results.csv")
+    assert str(videos_dir) in menu
+    assert f"{url}/export.json" in menu
+    assert f"{url}/results.csv" in menu
+    assert f"{url}/export.json" not in before_menu
+    assert f"{url}/results.csv" not in before_menu
 
 
 def test_processing_page_lists_the_history_with_the_end_time(client: TestClient, videos_dir: Path) -> None:
