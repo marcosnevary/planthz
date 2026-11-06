@@ -117,12 +117,22 @@ def require_video(db: sqlite3.Connection, video_id: int) -> store.Video:
 # --- Campaigns ---------------------------------------------------------------------------------
 
 
-@app.get("/", response_class=HTMLResponse)
-def home(request: Request, db: Db) -> Response:
-    return _home(request, db)
+@app.get("/")
+def home(db: Db) -> Response:
+    campaigns = store.list_campaigns(db)
+    url = f"/campaigns/{campaigns[0]['id']}" if campaigns else "/campaigns/new"
+
+    return RedirectResponse(url, status_code=303)
 
 
-def _home(request: Request, db: sqlite3.Connection, error: str | None = None, videos_dir: str = "") -> Response:
+@app.get("/campaigns/new", response_class=HTMLResponse)
+def new_campaign(request: Request, db: Db) -> Response:
+    return _new_campaign_page(request, db)
+
+
+def _new_campaign_page(
+    request: Request, db: sqlite3.Connection, error: str | None = None, videos_dir: str = ""
+) -> Response:
     campaigns = []
 
     for campaign in store.list_campaigns(db):
@@ -138,7 +148,7 @@ def _home(request: Request, db: sqlite3.Connection, error: str | None = None, vi
 
     return templates.TemplateResponse(
         request,
-        "home.html",
+        "new_campaign.html",
         {"campaigns": campaigns, "error": error, "videos_dir": videos_dir},
         status_code=422 if error else 200,
     )
@@ -151,15 +161,15 @@ def create_campaign(
     path = Path(videos_dir.strip()).expanduser()
 
     if not path.is_absolute() or not path.is_dir():
-        return _home(request, db, "Essa pasta não existe. Informe o caminho completo.", videos_dir)
+        return _new_campaign_page(request, db, "Essa pasta não existe. Informe o caminho completo.", videos_dir)
 
     path = path.resolve()
 
     if db.execute("SELECT 1 FROM campaign WHERE videos_dir = ?", (str(path),)).fetchone():
-        return _home(request, db, "Já existe uma campanha para essa pasta.", videos_dir)
+        return _new_campaign_page(request, db, "Já existe uma campanha para essa pasta.", videos_dir)
 
     if not scan_videos(path).videos:
-        return _home(
+        return _new_campaign_page(
             request,
             db,
             "Nenhum vídeo encontrado. Eles devem estar em pastas por dia, como 2026-10-29/video_20261029_120503.mp4.",

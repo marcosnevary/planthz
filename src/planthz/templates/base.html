@@ -8,40 +8,36 @@
   <script src="/static/htmx.min.js" defer></script>
 </head>
 <body>
+  {% block sidebar %}
   <aside class="sidebar">
     <a class="brand" href="/">planthz</a>
 
     <details class="campaign-menu">
-      <summary class="button">{{ campaign.name if campaign else "Selecionar campanha" }}</summary>
+      <summary class="button">{{ campaign.name }}</summary>
       <div class="campaign-menu-body">
-        {% if all_campaigns %}
         <nav aria-label="Campanhas">
           {% for item in all_campaigns %}
-          <a href="/campaigns/{{ item.id }}" {% if campaign and item.id == campaign.id %}aria-current="page"{% endif %}>{{ item.name }}</a>
+          <a href="/campaigns/{{ item.id }}" {% if item.id == campaign.id %}aria-current="page"{% endif %}>{{ item.name }}</a>
           {% endfor %}
         </nav>
-        {% endif %}
         <div class="campaign-actions">
-          <a href="/">Nova campanha</a>
-          {% if campaign %}
+          <a href="/campaigns/new">Nova campanha</a>
           <form method="post" action="/campaigns/{{ campaign.id }}/delete"
                 onsubmit="return confirm('Excluir esta campanha, com seus ROIs e resultados? Os vídeos não são apagados.')">
             <button class="danger" type="submit">Excluir campanha</button>
           </form>
-          {% endif %}
         </div>
       </div>
     </details>
 
-    {% if campaign %}
     <nav class="sidebar-nav" aria-label="Seções da campanha">
       <a href="/campaigns/{{ campaign.id }}" {% if tab == "processing" %}aria-current="page"{% endif %}>Processamento</a>
       <a href="/campaigns/{{ campaign.id }}/rois" {% if tab == "rois" %}aria-current="page"{% endif %}>ROIs</a>
       <a href="/campaigns/{{ campaign.id }}/videos" {% if tab == "videos" %}aria-current="page"{% endif %}>Vídeos</a>
       <a href="/campaigns/{{ campaign.id }}/analysis" {% if tab == "analysis" %}aria-current="page"{% endif %}>Análises</a>
     </nav>
-    {% endif %}
   </aside>
+  {% endblock %}
   <main>
     {% block content %}{% endblock %}
   </main>

@@ -34,7 +34,7 @@ Each frame must show both plants, with plant 1 on the left and plant 2 on the ri
 
 ## Workflow
 
-1. **New campaign:** open the campaign menu in the sidebar, choose "Nova campanha" and enter the path of the video folder. The same menu switches campaigns and deletes the current one.
+1. **New campaign:** with no campaigns, the app opens on the new campaign page, where you enter the path of the video folder. Otherwise it opens on the most recent campaign, and the sidebar's campaign menu switches campaigns, creates a new one ("Nova campanha") and deletes the current one.
 2. **ROIs:** pick a reference day and drag over its frame to draw each plant's rectangle, or type its coordinates. The saved ROIs apply to all videos of the campaign.
 3. **Processing:** disable the days you want to skip, then start the batch. It keeps running if the page or the server closes, and it can be stopped and continued.
 4. **Videos:** browse the frames of each day with the ROIs drawn on them.
