@@ -540,10 +540,6 @@ def analysis_page(request: Request, db: Db, campaign_id: int) -> Response:
     runs = store.list_runs(db, campaign_id)
     result = analysis_module.build_analysis(runs)
     has_data = not result.rows.empty
-    daily_by_day: dict[str, dict[int, Any]] = defaultdict(dict)
-
-    for row in result.daily_means.to_dict("records"):
-        daily_by_day[str(row["day"])][int(row["plant_id"])] = row
 
     return templates.TemplateResponse(
         request,
@@ -555,7 +551,6 @@ def analysis_page(request: Request, db: Db, campaign_id: int) -> Response:
             "per_video_chart": charts.frequency_per_video(result.rows) if has_data else "",
             "daily_chart": charts.daily_means(result.daily_means) if has_data else "",
             "summary": list(result.plant_summary.itertuples()),
-            "daily_rows": sorted(daily_by_day.items()),
         },
     )
 

@@ -116,4 +116,5 @@ def test_daily_chart_shades_the_standard_deviation_within_the_axis() -> None:
 
     assert chart.count('class="band plant-1"') == 1
     assert ">1,0</text>" in chart
-    assert "2,00 ± 1,00 Hz" in chart
+    assert "Média: 2,000 Hz\nDesvio padrão: 1,000 Hz\nVídeos: 5" in chart
+    assert "Desvio padrão: —" in chart

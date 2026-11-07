@@ -134,7 +134,13 @@ def frequency_per_video(rows: pd.DataFrame) -> str:
 
         for row in rows[rows["plant_id"] == plant_id].to_dict("records"):
             x, y = frame.x(row["captured_at"]), frame.y(row["frequency"])
-            tip = f"Planta {plant_id} · {row['captured_at']:%d/%m %H:%M} · {_hz(row['frequency'])} Hz · {row['video']}"
+            tip = "\n".join(
+                [
+                    f"Planta {plant_id} · {row['captured_at']:%d/%m/%Y %H:%M}",
+                    f"Frequência: {_hz(row['frequency'])} Hz",
+                    f"Vídeo: {row['video']}",
+                ]
+            )
             points.append(
                 f'<a href="/videos/{row["video_id"]}" data-tip="{escape(tip)}" aria-label="{escape(tip)}">'
                 f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="8"/>{_marker(plant_id, x, y)}</a>'
@@ -190,10 +196,13 @@ def daily_means(table: pd.DataFrame) -> str:
 
         for moment, value, std, size in points:
             x, y = frame.x(moment), frame.y(value)
-            deviation = "" if pd.isna(std) else f" ± {_hz(std)}"
-            tip = (
-                f"Planta {plant_id} · {moment:%d/%m} · {_hz(value)}{deviation} Hz · "
-                f"{size} vídeo{'s' if size != 1 else ''}"
+            tip = "\n".join(
+                [
+                    f"Planta {plant_id} · {moment:%d/%m/%Y}",
+                    f"Média: {_hz(value, 3)} Hz",
+                    f"Desvio padrão: {'—' if pd.isna(std) else f'{_hz(std, 3)} Hz'}",
+                    f"Vídeos: {size}",
+                ]
             )
             plant_markers.append(
                 f'<g data-tip="{escape(tip)}" aria-label="{escape(tip)}">'

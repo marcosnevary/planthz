@@ -42,27 +42,6 @@
   <h2>Média diária</h2>
   {{ legend(with_band=True) }}
   {{ daily_chart|safe }}
-  <table>
-    <thead>
-      <tr>
-        <th>Dia</th>
-        <th class="num">Planta 1: média (Hz)</th><th class="num">Desvio (Hz)</th><th class="num">Vídeos</th>
-        <th class="num">Planta 2: média (Hz)</th><th class="num">Desvio (Hz)</th><th class="num">Vídeos</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for day, plants in daily_rows %}
-      <tr>
-        <td>{{ day|day }}</td>
-        {% for plant_id in PLANT_IDS %}
-        <td class="num">{{ plants[plant_id].mean|decimal }}</td>
-        <td class="num">{{ plants[plant_id].std|decimal }}</td>
-        <td class="num">{{ plants[plant_id].size }}</td>
-        {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
 </section>
 <script src="/static/charts.js" defer></script>
 {% endif %}

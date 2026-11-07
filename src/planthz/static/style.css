@@ -273,12 +273,14 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
   position: fixed;
   z-index: 10;
   max-width: 320px;
-  padding: 4px 8px;
+  padding: 6px 10px;
   border-radius: 6px;
   background: var(--ink);
   color: var(--surface);
   font-size: 12px;
+  line-height: 1.6;
   font-variant-numeric: tabular-nums;
+  white-space: pre-line;
   pointer-events: none;
 }
 .chart { display: block; width: 100%; height: auto; margin-bottom: 12px; font-size: 12px; }
