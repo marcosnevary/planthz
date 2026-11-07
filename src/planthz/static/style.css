@@ -265,7 +265,7 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 /* Analysis */
 .legend { display: flex; gap: 8px; margin: 8px 0 4px; font-size: 12px; }
 .legend-toggle { padding: 4px 10px; font-size: 12px; background: transparent; }
-.legend-toggle[aria-pressed="false"] { color: var(--ink-muted); text-decoration: line-through; }
+.legend-toggle[aria-pressed="false"] { color: var(--ink-muted); }
 .legend-toggle[aria-pressed="false"] .swatch { opacity: 0.3; }
 .period { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
 .chart-tip {
