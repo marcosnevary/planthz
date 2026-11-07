@@ -14,12 +14,10 @@ class Analysis:
     rows: pd.DataFrame
     plant_summary: pd.DataFrame
     daily_means: pd.DataFrame
-    n_videos: int
-    n_unpaired_videos: int
 
 
-def valid_rows(runs: list[Run]) -> tuple[pd.DataFrame, int]:
-    """Return the rows of the videos with a result for both plants, and how many videos were dropped.
+def valid_rows(runs: list[Run]) -> pd.DataFrame:
+    """Return the rows of the videos with a result for both plants.
 
     The plants are compared on the same videos, so a video without a valid result for one plant
     leaves for both.
@@ -41,13 +39,12 @@ def valid_rows(runs: list[Run]) -> tuple[pd.DataFrame, int]:
     )
     n_plants = len({run.plant_id for run in runs})
     paired = rows.groupby("video_id")["plant_id"].transform("nunique").eq(n_plants)
-    n_unpaired = rows.loc[~paired, "video_id"].nunique()
 
-    return rows[paired], n_unpaired
+    return rows[paired]
 
 
 def build_analysis(runs: list[Run]) -> Analysis:
-    rows, n_unpaired = valid_rows(runs)
+    rows = valid_rows(runs)
 
     return Analysis(
         rows=rows,
@@ -55,8 +52,6 @@ def build_analysis(runs: list[Run]) -> Analysis:
         daily_means=(
             rows.groupby(["day", "plant_id"])["frequency"].agg(["mean", "std", "size"]).reset_index().sort_values("day")
         ),
-        n_videos=rows["video_id"].nunique(),
-        n_unpaired_videos=n_unpaired,
     )
 
 

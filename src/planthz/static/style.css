@@ -263,11 +263,6 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .frame-slider { margin-top: 12px; }
 
 /* Analysis */
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 16px; }
-/* Reversed so the number shows above its description while the markup keeps the dt before the dd. */
-.stats > div { display: flex; flex-direction: column-reverse; justify-content: flex-end; padding: 24px; border-radius: var(--radius); background: var(--surface); }
-.stats dt { font-size: 12px; color: var(--ink-muted); }
-.stats dd { margin: 0; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .legend { display: flex; gap: 16px; margin: 8px 0 4px; font-size: 12px; }
 .axis-caption { margin: 4px 0 12px; font-size: 12px; color: var(--ink-muted); }
 .chart { display: block; width: 100%; height: auto; font-size: 12px; }
