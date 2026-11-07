@@ -119,7 +119,7 @@ def test_sidebar_links_to_the_rois_while_a_video_is_on_disk(client: TestClient, 
 
     sidebar = client.get(url).text.split("<main>")[0]
     assert f'href="{url}/rois"' not in sidebar
-    assert 'aria-disabled="true">ROIs' in sidebar
+    assert re.search(r'aria-disabled="true">.*?ROIs</a>', sidebar)
 
 
 def test_campaign_menu_shows_the_folder_and_holds_the_downloads(client: TestClient, videos_dir: Path) -> None:
