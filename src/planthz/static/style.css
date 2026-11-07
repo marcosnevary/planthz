@@ -79,7 +79,7 @@ p { margin: 0 0 8px; }
 .sidebar nav a:hover, .campaign-actions a:hover { background: var(--surface-hover); }
 /* Needs .sidebar to outrank the display: block of .sidebar nav a. */
 .sidebar .sidebar-nav a { display: flex; align-items: center; gap: 8px; }
-.nav-icon {
+.icon {
   flex: none;
   width: 16px;
   height: 16px;
@@ -153,6 +153,15 @@ input:not([type="radio"], [type="range"], [type="checkbox"]), select {
   font: inherit;
   font-weight: 400;
 }
+/* The native arrow hugs the right edge regardless of padding, so it is replaced by one placed with the field's padding. */
+select {
+  appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235c6661' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 14px;
+}
 input[type="range"] { display: block; width: 100%; margin-top: 8px; accent-color: var(--accent); }
 input[type="checkbox"] { width: 16px; height: 16px; margin: 0; vertical-align: middle; accent-color: var(--accent); }
 fieldset { margin: 0; padding: 0; border: 0; }
@@ -212,6 +221,7 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 /* A switch between views: chart types on the analysis page. */
 .segmented { display: inline-flex; padding: 2px; border-radius: 6px; background: var(--page); }
 .segmented button { padding: 4px 10px; font-size: 12px; background: transparent; color: var(--ink-muted); }
+.segmented .icon { display: block; }
 .segmented [aria-pressed="true"] {
   background: var(--surface);
   color: var(--ink);
@@ -312,9 +322,8 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .chart-controls .legend { margin: 0; }
 .chart-options { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .moving-average { display: flex; align-items: center; gap: 8px; font-weight: 500; }
-.moving-average:has(select:disabled) { color: var(--ink-muted); }
+.moving-average[hidden] { display: none; }
 .moving-average select { width: auto; margin: 0; padding-top: 4px; padding-bottom: 4px; font-size: 12px; }
-.moving-average select:disabled { opacity: 0.55; }
 /* Hiding the band moves the daily chart to the axis of the means alone; charts.py computes both. */
 .chart .y-axis { transition: opacity 0.4s ease; }
 .chart .y-axis.without-band, .chart[data-without-band] .y-axis:not(.without-band), .chart[data-without-band] .band { opacity: 0; }
