@@ -75,7 +75,11 @@ class _Frame:
         bottom = self.height - MARGIN["bottom"]
         parts = [self.render_y_axis()]
 
-        # Labels are thinned so a long campaign does not collide.
+        for offset in range(self.days + 1):
+            x = self.x(self.start + timedelta(days=offset))
+            parts.append(f'<line class="grid" x1="{x:.1f}" x2="{x:.1f}" y1="{MARGIN["top"]}" y2="{bottom}"/>')
+
+        # Labels are thinned so a long campaign does not collide, while day lines stay.
         label_every = max(1, math.ceil(self.days / 16))
 
         for offset in range(0, self.days, label_every):
