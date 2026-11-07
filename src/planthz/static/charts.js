@@ -16,7 +16,8 @@
       button.setAttribute("aria-pressed", String(button === modeButton));
     });
     panel.querySelector(".chart").dataset.mode = mode;
-    panel.querySelector(".moving-average").hidden = mode !== "line";
+    // Disabled rather than hidden, so showing it does not push the other controls aside.
+    panel.querySelector(".moving-average select").disabled = mode !== "line";
   });
 
   document.addEventListener("change", (event) => {

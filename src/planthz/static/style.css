@@ -299,8 +299,9 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .segmented button { padding: 4px 10px; font-size: 12px; background: transparent; color: var(--ink-muted); }
 .segmented button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgb(29 35 32 / 0.12); }
 .moving-average { display: flex; align-items: center; gap: 8px; font-weight: 500; }
-.moving-average[hidden] { display: none; }
+.moving-average:has(select:disabled) { color: var(--ink-muted); }
 .moving-average select { width: auto; margin: 0; padding-top: 4px; padding-bottom: 4px; font-size: 12px; }
+.moving-average select:disabled { opacity: 0.55; }
 /* Hiding the band moves the daily chart to the axis of the means alone; charts.py computes both. */
 .chart .y-axis { transition: opacity 0.4s ease; }
 .chart .y-axis.without-band, .chart[data-without-band] .y-axis:not(.without-band), .chart[data-without-band] .band { opacity: 0; }

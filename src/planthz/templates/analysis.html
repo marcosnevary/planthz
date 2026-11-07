@@ -41,8 +41,8 @@
         <button type="button" class="mode-toggle" data-mode="scatter" aria-pressed="true">Pontos</button>
         <button type="button" class="mode-toggle" data-mode="line" aria-pressed="false">Linha</button>
       </div>
-      <label class="moving-average" hidden>Média móvel
-        <select autocomplete="off">
+      <label class="moving-average">Média móvel
+        <select autocomplete="off" disabled>
           <option value="">Desligada</option>
           {% for hours in MOVING_AVERAGE_HOURS %}
           <option value="{{ hours }}">{{ hours }} h</option>
