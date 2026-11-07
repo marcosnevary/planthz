@@ -45,7 +45,7 @@ A video enters the analysis only if **both** of its runs are `done`, so the plan
 
 Hiding a plant from a chart's legend on the analysis page only hides its marks: the axes keep the range of both plants.
 
-The daily chart shades one standard deviation around each plant's daily mean, and its vertical axis covers that band. A day with one video has no standard deviation and adds no height to the band. A day without videos breaks both the line and the band.
+The daily chart shades one standard deviation around each plant's daily mean, and its vertical axis covers that band even when the legend hides it. A day with one video has no standard deviation and adds no height to the band. A day without videos breaks both the line and the band.
 
 ## Disabled days
 

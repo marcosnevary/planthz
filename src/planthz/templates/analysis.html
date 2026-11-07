@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Análises · {{ campaign.name }}{% endblock %}
 {% block content %}
-{% macro legend() %}
+{% macro legend(with_band=False) %}
 <div class="legend">
   {% for plant_id in PLANT_IDS %}
   <button type="button" class="legend-toggle" data-plant="{{ plant_id }}" aria-pressed="true"><span class="swatch plant-{{ plant_id }}"></span> Planta {{ plant_id }}</button>
   {% endfor %}
+  {% if with_band %}
+  <button type="button" class="legend-toggle" data-band aria-pressed="true"><span class="swatch band"></span> Desvio padrão</button>
+  {% endif %}
 </div>
 {% endmacro %}
 {% if not has_data %}
@@ -37,7 +40,7 @@
 
 <section class="panel chart-panel">
   <h2>Média diária</h2>
-  {{ legend() }}
+  {{ legend(with_band=True) }}
   {{ daily_chart|safe }}
   <table>
     <thead>
