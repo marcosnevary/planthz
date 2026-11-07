@@ -189,6 +189,9 @@ def frequency_per_video(rows: pd.DataFrame) -> str:
                 [
                     f"Planta {plant_id} · {row['captured_at']:%d/%m/%Y %H:%M}",
                     f"Frequência: {_hz(row['frequency'])} Hz",
+                    f"Amplitude: {'–' if pd.isna(row['amplitude']) else _hz(row['amplitude'], 1)}",
+                    f"Fonte: {'–' if pd.isna(row['source']) else int(row['source'])}",
+                    f"ROI aplicado: {row['roi']}",
                     f"Vídeo: {row['video']}",
                 ]
             )

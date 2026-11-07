@@ -63,9 +63,9 @@ def main_of(page: str) -> str:
     return re.sub(r"/(videos|campaigns)/\d+", r"/\1/<id>", content)
 
 
-def results_table_of(page: str) -> str:
+def results_of(page: str) -> str:
     """The results of a video page. The rest of the page depends on the file being on this machine."""
-    return page.split("<h2>Resultados</h2>")[1].split("</table>")[0]
+    return page.split('<div class="plant-cards">')[1].rsplit("</section>", 1)[0]
 
 
 def table_rows(db: sqlite3.Connection, query: str) -> list[tuple[Any, ...]]:
@@ -105,7 +105,7 @@ def test_round_trip_keeps_everything_where_the_videos_do_not_exist(
     export = client.get(f"{url}/export.json")
     csv = client.get(f"{url}/results.csv")
     analysis = client.get(f"{url}/analysis").text
-    video_tables = [results_table_of(client.get(f"/videos/{video_id + offset}").text) for offset in range(3)]
+    video_results = [results_of(client.get(f"/videos/{video_id + offset}").text) for offset in range(3)]
 
     move_to_another_machine(monkeypatch, tmp_path, own_videos)
     response = import_file(client, export.content)
@@ -118,9 +118,7 @@ def test_round_trip_keeps_everything_where_the_videos_do_not_exist(
     assert main_of(client.get(f"{new_url}/analysis").text) == main_of(analysis)
     assert client.get(f"{new_url}/results.csv").content == csv.content
     assert client.get(f"{new_url}/results.csv").headers["content-disposition"] == csv.headers["content-disposition"]
-    assert [
-        results_table_of(client.get(f"/videos/{new_video_id + offset}").text) for offset in range(3)
-    ] == video_tables
+    assert [results_of(client.get(f"/videos/{new_video_id + offset}").text) for offset in range(3)] == video_results
     assert client.get(f"{new_url}/export.json").content == export.content
 
 

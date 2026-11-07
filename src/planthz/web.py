@@ -372,6 +372,7 @@ def _rois_page(
     video_id: int | None,
     error: str | None = None,
     submitted: dict[str, Any] | None = None,
+    saved: bool = False,
 ) -> Response:
     on_disk = [video for video in store.list_videos(db, campaign["id"]) if video.on_disk]
     reference = next((video for video in on_disk if video.id == video_id), on_disk[0] if on_disk else None)
@@ -396,6 +397,7 @@ def _rois_page(
             "reference_days": list(first_per_day.values()),
             "form": form,
             "error": error,
+            "saved": saved,
         },
         status_code=422 if error else 200,
     )
@@ -417,8 +419,8 @@ def _rois_form(plants: dict[int, Roi] | None) -> dict[str, Any]:
 
 
 @app.get("/campaigns/{campaign_id}/rois", response_class=HTMLResponse)
-def rois_page(request: Request, db: Db, campaign_id: int, video: int | None = None) -> Response:
-    return _rois_page(request, db, require_synced_campaign(db, campaign_id), video)
+def rois_page(request: Request, db: Db, campaign_id: int, video: int | None = None, saved: bool = False) -> Response:
+    return _rois_page(request, db, require_synced_campaign(db, campaign_id), video, saved=saved)
 
 
 @app.post("/campaigns/{campaign_id}/rois")
@@ -454,9 +456,9 @@ def save_rois(
         return _rois_page(request, db, campaign, reference_video, error, _rois_form(plants))
 
     store.save_rois(db, campaign_id, plants)
-    suffix = f"?video={reference_video}" if reference_video else ""
+    video_query = f"&video={reference_video}" if reference_video else ""
 
-    return RedirectResponse(f"/campaigns/{campaign_id}/rois{suffix}", status_code=303)
+    return RedirectResponse(f"/campaigns/{campaign_id}/rois?saved=true{video_query}", status_code=303)
 
 
 # --- Videos ------------------------------------------------------------------------------------
