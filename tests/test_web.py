@@ -143,7 +143,7 @@ def test_processing_page_lists_the_history_with_the_end_time(client: TestClient,
     run_batch(url)
 
     page = client.get(url).text
-    assert '<button type="button" role="tab" id="tab-history"' in page
+    assert "<h2>Histórico</h2>" in page
     assert page.count('<td><a href="/videos/') == 6
     assert re.search(r"<td class=\"num\">\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}</td>", page)
 

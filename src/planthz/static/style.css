@@ -208,12 +208,11 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 .ignored { font-size: 12px; color: var(--ink-muted); }
 
-/* Tabs */
-/* A switch between views: tabs on the processing page, chart types on the analysis page. */
+/* Segmented switch */
+/* A switch between views: chart types on the analysis page. */
 .segmented { display: inline-flex; padding: 2px; border-radius: 6px; background: var(--page); }
-.segmented[role="tablist"] { margin-bottom: 12px; }
 .segmented button { padding: 4px 10px; font-size: 12px; background: transparent; color: var(--ink-muted); }
-.segmented [aria-pressed="true"], .segmented [aria-selected="true"] {
+.segmented [aria-pressed="true"] {
   background: var(--surface);
   color: var(--ink);
   box-shadow: 0 1px 3px rgb(29 35 32 / 0.12);
