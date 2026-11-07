@@ -273,16 +273,19 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
   position: fixed;
   z-index: 10;
   max-width: 320px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: var(--ink);
-  color: var(--surface);
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 4px 16px rgb(29 35 32 / 0.12);
   font-size: 12px;
   line-height: 1.6;
   font-variant-numeric: tabular-nums;
   white-space: pre-line;
   pointer-events: none;
 }
+.chart-tip::first-line { font-weight: 600; }
 .chart { display: block; width: 100%; height: auto; margin-bottom: 12px; font-size: 12px; }
 .chart .series[hidden], .chart .band[hidden] { display: none; }
 .chart .grid { stroke: var(--line); stroke-width: 1; }
