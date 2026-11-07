@@ -16,7 +16,8 @@
   --ink: #1d2320;
   --ink-muted: #5c6661;
   --line: #dcdfda;
-  --accent: #1f6b4a;
+  --accent: #165238;
+  --accent-hover: #0f3d29;
   --accent-ink: #ffffff;
   --danger: #a8341f;
   --warning-bg: #fdf4dc;
@@ -162,7 +163,7 @@ button, .button {
 button:hover:not(:disabled), .button:hover { background: var(--control-hover); }
 button:disabled { opacity: 0.55; cursor: default; }
 button.primary { background: var(--accent); color: var(--accent-ink); }
-button.primary:hover:not(:disabled) { background: #185a3d; }
+button.primary:hover:not(:disabled) { background: var(--accent-hover); }
 button.danger { color: var(--danger); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
