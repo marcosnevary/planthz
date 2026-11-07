@@ -68,7 +68,6 @@ p { margin: 0 0 8px; }
   overflow-y: auto;
   --control: var(--page);
   background: var(--surface);
-  border-right: 1px solid var(--line);
 }
 .brand { padding: 0 8px; font-weight: 700; font-size: 20px; line-height: var(--brand-height); color: var(--ink); text-decoration: none; }
 .sidebar nav { display: flex; flex-direction: column; gap: 2px; }
@@ -356,7 +355,6 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
     height: auto;
     gap: 10px;
     padding: 10px 16px;
-    border-right: 0;
     border-bottom: 1px solid var(--line);
   }
   .sidebar-foot { margin-top: 0; }
