@@ -163,6 +163,16 @@ def test_processing_page_asks_for_rois_first(client: TestClient, videos_dir: Pat
     assert "Iniciar" not in page
 
 
+def test_saving_rois_confirms_on_the_page_it_returns_to(client: TestClient, videos_dir: Path) -> None:
+    url = create_campaign(client, videos_dir)
+    video_id = first_video_id(client, url)
+
+    response = client.post(f"{url}/rois", data={**ROI_FORM, "reference_video": video_id})
+
+    assert "ROIs salvos" in response.text
+    assert "ROIs salvos" not in client.get(f"{url}/rois?video={video_id}").text
+
+
 def test_saving_overlapping_rois_is_rejected_and_keeps_the_input(client: TestClient, videos_dir: Path) -> None:
     url = create_campaign(client, videos_dir)
     video_id = first_video_id(client, url)

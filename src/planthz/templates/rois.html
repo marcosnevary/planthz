@@ -1,59 +1,61 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}ROIs · {{ campaign.name }}{% endblock %}
 {% block content %}
-<section class="panel">
-  {% if error %}<p class="alert error" role="alert">{{ error }}</p>{% endif %}
+{% if error %}<p class="alert error page-alert" role="alert">{{ error }}</p>{% endif %}
 
-  <div class="roi-editor">
-    <div class="roi-stage-column">
-      <div class="roi-stage" id="roi-stage">
-        <img id="roi-frame" src="/videos/{{ reference.id }}/frame.jpg?overlay=false" alt="Quadro do vídeo {{ reference.name }}" draggable="false">
-        <svg id="roi-overlay" aria-hidden="true">
-          <g data-plant="1"><rect class="roi-rect plant-1"/><text class="roi-label plant-1">Planta 1</text></g>
-          <g data-plant="2"><rect class="roi-rect plant-2"/><text class="roi-label plant-2">Planta 2</text></g>
-        </svg>
-      </div>
-      <div class="frame-controls">
-        <form method="get" action="/campaigns/{{ campaign.id }}/rois" class="inline">
-          <label>Dia de referência
-            <select name="video" onchange="this.form.submit()">
-              {% for video in reference_days %}
-              <option value="{{ video.id }}" {% if video.day == reference.day %}selected{% endif %}>{{ video.day|day }}</option>
-              {% endfor %}
-            </select>
-          </label>
-        </form>
-        <label class="grow">Ponto do vídeo
-          <input id="roi-position" type="range" min="0" max="10" step="1" value="0" data-video="{{ reference.id }}">
-        </label>
-      </div>
+<div class="roi-editor">
+  <div class="roi-stage-column">
+    <div class="roi-stage" id="roi-stage">
+      <img id="roi-frame" src="/videos/{{ reference.id }}/frame.jpg?overlay=false" alt="Quadro do vídeo {{ reference.name }}" draggable="false">
+      <svg id="roi-overlay" aria-hidden="true">
+        <g data-plant="1"><rect class="roi-rect plant-1"/><text class="roi-label plant-1">Planta 1</text></g>
+        <g data-plant="2"><rect class="roi-rect plant-2"/><text class="roi-label plant-2">Planta 2</text></g>
+      </svg>
     </div>
-
-    <form method="post" action="/campaigns/{{ campaign.id }}/rois" class="roi-form stack" id="roi-form">
-      <input type="hidden" name="reference_video" value="{{ reference.id }}">
-
-      <fieldset class="plant-picker">
-        <legend>Desenhando</legend>
-        <label class="plant-choice"><input type="radio" name="active_plant" value="1" checked> <span class="swatch plant-1"></span> Planta 1 <span class="muted">(esquerda)</span></label>
-        <label class="plant-choice"><input type="radio" name="active_plant" value="2"> <span class="swatch plant-2"></span> Planta 2 <span class="muted">(direita)</span></label>
-      </fieldset>
-
-      {% for plant_id in PLANT_IDS %}
-      <fieldset class="coordinates">
-        <legend>Planta {{ plant_id }} <span class="muted">(pixels)</span></legend>
-        {% for axis in ["x", "y", "w", "h"] %}
-        {% set field = "plant_" ~ plant_id ~ "_" ~ axis %}
-        <label>{{ {"x": "x", "y": "y", "w": "Largura", "h": "Altura"}[axis] }}
-          <input type="number" name="{{ field }}" value="{{ form[field] }}" min="0" step="1" required data-plant="{{ plant_id }}" data-axis="{{ axis }}">
+    <div class="frame-controls">
+      <form method="get" action="/campaigns/{{ campaign.id }}/rois" class="inline">
+        <label>
+          <select name="video" aria-label="Dia de referência" onchange="this.form.submit()">
+            {% for video in reference_days %}
+            <option value="{{ video.id }}" {% if video.day == reference.day %}selected{% endif %}>{{ video.day|day }}</option>
+            {% endfor %}
+          </select>
         </label>
-        {% endfor %}
-      </fieldset>
-      {% endfor %}
-
-      <button class="primary" type="submit">Salvar ROIs</button>
-      <p class="muted small">Resultados calculados com um ROI que mudou são refeitos no próximo processamento.</p>
-    </form>
+      </form>
+      <label class="grow">
+        <input id="roi-position" type="range" aria-label="Ponto do vídeo" min="0" max="10" step="1" value="0" data-video="{{ reference.id }}">
+        <output id="roi-position-value" for="roi-position">0%</output>
+      </label>
+    </div>
   </div>
-</section>
+
+  <form method="post" action="/campaigns/{{ campaign.id }}/rois" class="panel roi-form stack" id="roi-form">
+    <input type="hidden" name="reference_video" value="{{ reference.id }}">
+
+    <fieldset class="plant-picker">
+      <legend>Desenhando</legend>
+      <label class="plant-choice"><input type="radio" name="active_plant" value="1" checked> <span class="swatch plant-1"></span> Planta 1</label>
+      <label class="plant-choice"><input type="radio" name="active_plant" value="2"> <span class="swatch plant-2"></span> Planta 2</label>
+    </fieldset>
+
+    {% for plant_id in PLANT_IDS %}
+    <fieldset class="coordinates">
+      <legend>Planta {{ plant_id }}</legend>
+      {% for axis in ["x", "y", "w", "h"] %}
+      {% set field = "plant_" ~ plant_id ~ "_" ~ axis %}
+      <label>{{ {"x": "x", "y": "y", "w": "Largura", "h": "Altura"}[axis] }}
+        <span class="unit-field" data-unit="px"><input type="number" name="{{ field }}" value="{{ form[field] }}" min="0" step="1" required data-plant="{{ plant_id }}" data-axis="{{ axis }}"></span>
+      </label>
+      {% endfor %}
+    </fieldset>
+    {% endfor %}
+
+    <button class="primary save-button" type="submit" {% if saved %}data-saved{% endif %}>
+      <span class="save-button-idle">Salvar ROIs</span>
+      <span class="save-button-done" role="status">{% if saved %}{{ icon("check") }} ROIs salvos{% endif %}</span>
+    </button>
+  </form>
+</div>
 <script src="/static/roi_editor.js" defer></script>
 {% endblock %}

@@ -1,59 +1,49 @@
 {% extends "base.html" %}
 {% block title %}{{ video.name }}{% endblock %}
 {% block content %}
-<section class="panel">
-  <div class="panel-head">
-    <div>
-      <p class="muted"><a href="/campaigns/{{ campaign.id }}/videos?day={{ video.day }}">{{ video.day|day }}</a></p>
-      <h1>{{ video.name }}</h1>
-    </div>
-    <div class="actions">
-      {% if previous_id %}<a class="button" id="previous-video" href="/videos/{{ previous_id }}">← Anterior</a>{% endif %}
-      {% if next_id %}<a class="button" id="next-video" href="/videos/{{ next_id }}">Próximo →</a>{% endif %}
-    </div>
+<div class="panel-head page-head">
+  <div>
+    <p class="muted"><a href="/campaigns/{{ campaign.id }}/videos?day={{ video.day }}">{{ video.day|day }}</a></p>
+    <h1>{{ video.name }}</h1>
   </div>
+  <div class="actions">
+    {% if previous_id %}<a class="button" id="previous-video" href="/videos/{{ previous_id }}">← Anterior</a>{% endif %}
+    {% if next_id %}<a class="button" id="next-video" href="/videos/{{ next_id }}">Próximo →</a>{% endif %}
+  </div>
+</div>
 
-  {% if not has_rois %}
-    <p class="alert">Nenhum ROI definido ainda.{% if campaign.id in campaigns_with_videos_on_disk %} <a href="/campaigns/{{ campaign.id }}/rois?video={{ video.id }}">Definir ROIs</a>{% endif %}</p>
-  {% endif %}
+{% if not has_rois %}
+<p class="alert page-alert">Nenhum ROI definido ainda.{% if campaign.id in campaigns_with_videos_on_disk %} <a href="/campaigns/{{ campaign.id }}/rois?video={{ video.id }}">Definir ROIs</a>{% endif %}</p>
+{% endif %}
 
-  <img class="video-frame" id="video-frame" src="/videos/{{ video.id }}/frame.jpg" alt="Quadro do vídeo com os ROIs desenhados"
-       onerror="this.alt='O quadro não está disponível: o arquivo não está no disco.'">
-  <label class="frame-slider">Ponto do vídeo
-    <input id="video-position" type="range" min="0" max="{{ max_position }}" step="1" value="0" data-video="{{ video.id }}">
+<img class="video-frame" id="video-frame" src="/videos/{{ video.id }}/frame.jpg" alt="Quadro do vídeo com os ROIs desenhados"
+     onerror="this.alt='O quadro não está disponível: o arquivo não está no disco.'">
+<div class="frame-controls">
+  <label class="grow">
+    <input id="video-position" type="range" aria-label="Ponto do vídeo" min="0" max="{{ max_position }}" step="1" value="0" data-video="{{ video.id }}">
+    <output id="video-position-value" for="video-position">0%</output>
   </label>
-</section>
+</div>
 
-<section class="panel">
-  <h2>Resultados</h2>
-  <table>
-    <thead>
-      <tr><th>Planta</th><th>ROI aplicado (x, y, largura, altura)</th><th>Situação</th><th class="num">Frequência (Hz)</th><th class="num">Amplitude</th><th class="num">Fonte</th></tr>
-    </thead>
-    <tbody>
-      {% for run in runs %}
-      <tr>
-        <td><span class="swatch plant-{{ run.plant_id }}"></span> Planta {{ run.plant_id }}</td>
-        <td>{{ run.roi if run.roi else "–" }}</td>
-        <td>
-          <span class="status status-{{ run.status.value }}">{{ STATUS_LABELS[run.status] }}</span>
-          {% if run.status == RunStatus.STALE %}<div class="muted small">Calculado com {{ run.result.roi }}</div>{% endif %}
-          {% if run.result and run.result.error %}<div class="muted small">{{ run.result.error }}</div>{% endif %}
-        </td>
-        {% if run.result and not run.result.error %}
-        <td class="num">{{ run.result.frequency|decimal }}</td>
-        <td class="num">{{ run.result.amplitude|decimal(1) }}</td>
-        <td class="num">{{ run.result.source if run.result.source is not none else "–" }}</td>
-        {% else %}
-        <td class="num">–</td><td class="num">–</td><td class="num">–</td>
-        {% endif %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% if video.on_disk %}
-  <p class="muted small"><a href="/campaigns/{{ campaign.id }}/rois?video={{ video.id }}">Ajustar ROIs usando este vídeo</a></p>
-  {% endif %}
-</section>
+<div class="plant-cards">
+  {% for run in runs %}
+  {% set measured = run.result and not run.result.error %}
+  <section class="plant-card plant-{{ run.plant_id }}">
+    <h2><span class="swatch plant-{{ run.plant_id }}"></span> Planta {{ run.plant_id }}</h2>
+    <dl>
+      <dt class="plant-card-mean">Frequência</dt><dd class="plant-card-mean">{{ run.result.frequency|decimal ~ " Hz" if measured and run.result.frequency is not none else "–" }}</dd>
+      <dt>Amplitude</dt><dd>{{ run.result.amplitude|decimal(1) if measured else "–" }}</dd>
+      <dt>Fonte</dt><dd>{{ run.result.source if measured and run.result.source is not none else "–" }}</dd>
+      <dt>ROI aplicado</dt><dd>{{ run.roi if run.roi else "–" }}</dd>
+      <dt>Situação</dt>
+      <dd>
+        {{ STATUS_LABELS[run.status] }}
+        {% if run.status == RunStatus.STALE %}<div class="small">Calculado com {{ run.result.roi }}</div>{% endif %}
+        {% if run.result and run.result.error %}<div class="small">{{ run.result.error }}</div>{% endif %}
+      </dd>
+    </dl>
+  </section>
+  {% endfor %}
+</div>
 <script src="/static/video.js" defer></script>
 {% endblock %}

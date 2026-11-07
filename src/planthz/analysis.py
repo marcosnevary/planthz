@@ -35,11 +35,14 @@ def valid_rows(runs: list[Run]) -> pd.DataFrame:
                 "captured_at": run.video.captured_at,
                 "plant_id": run.plant_id,
                 "frequency": run.result.frequency,
+                "amplitude": run.result.amplitude,
+                "source": run.result.source,
+                "roi": run.result.roi,
             }
             for run in runs
             if run.status is RunStatus.DONE and run.result is not None
         ],
-        columns=["video_id", "video", "day", "captured_at", "plant_id", "frequency"],
+        columns=["video_id", "video", "day", "captured_at", "plant_id", "frequency", "amplitude", "source", "roi"],
     )
     n_plants = len({run.plant_id for run in runs})
     paired = rows.groupby("video_id")["plant_id"].transform("nunique").eq(n_plants)

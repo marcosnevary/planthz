@@ -8,6 +8,7 @@
   const frame = document.getElementById("roi-frame");
   const overlay = document.getElementById("roi-overlay");
   const positionInput = document.getElementById("roi-position");
+  const positionValue = document.getElementById("roi-position-value");
   const form = document.getElementById("roi-form");
 
   const input = (plant, axis) => form.querySelector(`input[data-plant="${plant}"][data-axis="${axis}"]`);
@@ -80,6 +81,31 @@
     overlay.setAttribute("viewBox", `0 0 ${frame.naturalWidth} ${frame.naturalHeight}`);
     render();
   }
+
+  const showPosition = () => {
+    const percent = `${(positionInput.value / positionInput.max) * 100}%`;
+    positionValue.textContent = percent;
+    positionInput.style.setProperty("--fill", percent);
+  };
+
+  new ResizeObserver(() => {
+    form.style.minHeight = `${stage.offsetHeight}px`;
+  }).observe(stage);
+
+  const saveButton = form.querySelector(".save-button");
+
+  if ("saved" in saveButton.dataset) {
+    const url = new URL(location.href);
+    url.searchParams.delete("saved");
+    history.replaceState(null, "", url);
+
+    // Waiting a frame lets the page paint the idle label first, so the change to the message animates.
+    requestAnimationFrame(() => requestAnimationFrame(() => saveButton.classList.add("showing-saved")));
+    setTimeout(() => saveButton.classList.remove("showing-saved"), 2500);
+  }
+
+  showPosition();
+  positionInput.addEventListener("input", showPosition);
 
   positionInput.addEventListener("change", () => {
     frame.src = `/videos/${positionInput.dataset.video}/frame.jpg?overlay=false&position=${positionInput.value}`;
