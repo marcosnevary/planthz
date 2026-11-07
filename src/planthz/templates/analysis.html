@@ -11,13 +11,6 @@
 {% if not has_data %}
 <p class="alert page-alert">Ainda não há vídeos com resultado válido para as duas plantas. <a href="/campaigns/{{ campaign.id }}">Ir para o processamento</a></p>
 {% else %}
-<div id="analysis-content" data-url="/campaigns/{{ campaign.id }}/analysis">
-{% if period %}
-<div class="period">
-  <span>Período: {{ period[0].isoformat()|day }} a {{ period[1].isoformat()|day }}{% if not summary %} · <span class="muted">nenhum vídeo com resultado válido neste período</span>{% endif %}</span>
-  <button type="button" hx-get="/campaigns/{{ campaign.id }}/analysis" hx-target="#analysis-content" hx-select="#analysis-content" hx-swap="outerHTML" hx-replace-url="true">Ver período completo</button>
-</div>
-{% endif %}
 <section class="panel">
   <h2>Resumo por planta</h2>
   <table>
@@ -40,14 +33,12 @@
   <h2>Frequência dominante por vídeo</h2>
   {{ legend() }}
   {{ per_video_chart|safe }}
-  <p class="axis-caption">Eixo vertical: frequência dominante (Hz). Eixo horizontal: dia da captura.</p>
 </section>
 
 <section class="panel chart-panel">
   <h2>Média diária</h2>
   {{ legend() }}
   {{ daily_chart|safe }}
-  <p class="axis-caption">Eixo vertical: frequência dominante média (Hz). Dias sem vídeos interrompem a linha.</p>
   <table>
     <thead>
       <tr>
@@ -70,7 +61,6 @@
     </tbody>
   </table>
 </section>
-</div>
 <script src="/static/charts.js" defer></script>
 {% endif %}
 {% endblock %}

@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -77,23 +77,14 @@ def test_csv_keeps_runs_left_out_of_the_analysis() -> None:
 
 def test_charts_handle_a_single_value() -> None:
     analysis = build_analysis([make_run(1, 1, 2.0), make_run(1, 2, 2.0)])
-    day = date(2026, 10, 29)
 
-    chart = charts.frequency_per_video(analysis.rows, day, day, charts.y_ticks(analysis.rows["frequency"]))
+    chart = charts.frequency_per_video(analysis.rows)
 
     assert 'data-plant="1"' in chart
     assert 'data-plant="2"' in chart
     assert "/videos/1" in chart
-    assert "<svg" in charts.daily_means(analysis.daily_means, day, day, charts.y_ticks(analysis.daily_means["mean"]))
-
-
-def test_chart_keeps_the_given_axes_for_a_subset() -> None:
-    analysis = build_analysis([make_run(1, 1, 2.0), make_run(1, 2, 2.0)])
-
-    chart = charts.frequency_per_video(analysis.rows, date(2026, 10, 28), date(2026, 10, 31), [0.0, 5.0, 10.0])
-
-    assert 'data-start="2026-10-28" data-days="4"' in chart
-    assert ">10,0</text>" in chart
+    assert "Dia da captura" in chart
+    assert "<svg" in charts.daily_means(analysis.daily_means)
 
 
 def test_daily_chart_breaks_the_line_at_days_without_videos() -> None:
@@ -107,6 +98,4 @@ def test_daily_chart_breaks_the_line_at_days_without_videos() -> None:
         }
     )
 
-    chart = charts.daily_means(table, date(2026, 10, 29), date(2026, 11, 2), charts.y_ticks(table["mean"]))
-
-    assert chart.count("<polyline") == 2
+    assert charts.daily_means(table).count("<polyline") == 2

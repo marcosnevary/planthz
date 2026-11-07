@@ -1,6 +1,6 @@
 """Inline SVG charts. Each point links to its video, so an odd value leads straight to its ROI.
 
-`static/charts.js` reads the `data-*` attributes to hide a plant, show tooltips and zoom into a period.
+`static/charts.js` reads the `data-*` attributes to hide a plant and show tooltips.
 """
 
 import math
@@ -12,7 +12,7 @@ import pandas as pd
 from planthz.rois import PLANT_IDS
 
 WIDTH = 1040
-MARGIN = {"top": 16, "right": 16, "bottom": 30, "left": 52}
+MARGIN = {"top": 16, "right": 16, "bottom": 52, "left": 76}
 PLANT_CLASSES = {1: "plant-1", 2: "plant-2"}
 
 
@@ -33,11 +33,12 @@ def _hz(value: float, decimals: int = 2) -> str:
 class _Frame:
     """The axes of a chart: time on x, with one column per day, and frequency on y."""
 
-    def __init__(self, first_day: date, last_day: date, y_ticks: list[float], height: int):
+    def __init__(self, first_day: date, last_day: date, y_ticks: list[float], height: int, y_label: str):
         self.start = datetime.combine(first_day, datetime.min.time())
         self.days = (last_day - first_day).days + 1
         self.y_ticks = y_ticks
         self.height = height
+        self.y_label = y_label
 
     def x(self, moment: datetime) -> float:
         fraction = (moment - self.start).total_seconds() / (self.days * 86400)
@@ -75,6 +76,17 @@ class _Frame:
                 label = (self.start + timedelta(days=offset)).strftime("%d/%m")
                 parts.append(f'<text class="tick" x="{noon:.1f}" y="{bottom + 20}" text-anchor="middle">{label}</text>')
 
+        middle_x = (MARGIN["left"] + WIDTH - MARGIN["right"]) / 2
+        middle_y = (MARGIN["top"] + bottom) / 2
+        parts.append(
+            f'<text class="axis-label" x="{middle_x:.1f}" y="{self.height - 6}" text-anchor="middle">'
+            "Dia da captura</text>"
+        )
+        parts.append(
+            f'<text class="axis-label" transform="translate(16 {middle_y:.1f}) rotate(-90)" text-anchor="middle">'
+            f"{escape(self.y_label)}</text>"
+        )
+
         return "".join(parts)
 
 
@@ -92,11 +104,19 @@ def _marker(plant_id: int, x: float, y: float, size: float = 3.5) -> str:
     )
 
 
-def _svg(frame: _Frame, label: str, content: str) -> str:
-    return (
-        f'<svg class="chart" viewBox="0 0 {WIDTH} {frame.height}" role="img" aria-label="{escape(label)}" '
-        f'data-start="{frame.start:%Y-%m-%d}" data-days="{frame.days}" '
-        f'data-plot-left="{MARGIN["left"]}" data-plot-right="{WIDTH - MARGIN["right"]}">{content}</svg>'
+def _svg(height: int, label: str, content: str) -> str:
+    return f'<svg class="chart" viewBox="0 0 {WIDTH} {height}" role="img" aria-label="{escape(label)}">{content}</svg>'
+
+
+def _shared_axis(rows: pd.DataFrame, height: int, y_label: str) -> _Frame:
+    days = pd.to_datetime(rows["day"])
+
+    return _Frame(
+        days.min().date(),
+        days.max().date(),
+        _nice_ticks(float(rows["frequency"].min()), float(rows["frequency"].max())),
+        height,
+        y_label,
     )
 
 
@@ -104,12 +124,9 @@ def _series(plant_id: int, content: str) -> str:
     return f'<g class="series" data-plant="{plant_id}">{content}</g>'
 
 
-def y_ticks(values: pd.Series) -> list[float]:
-    return _nice_ticks(float(values.min()), float(values.max()))
-
-
-def frequency_per_video(rows: pd.DataFrame, first_day: date, last_day: date, ticks: list[float]) -> str:
-    frame = _Frame(first_day, last_day, ticks, 280)
+def frequency_per_video(rows: pd.DataFrame) -> str:
+    # Both plants share the axes, so hiding one in the legend never rescales the other.
+    frame = _shared_axis(rows, 300, "Frequência dominante (Hz)")
     parts = [frame.render()]
 
     for plant_id in PLANT_IDS:
@@ -125,11 +142,11 @@ def frequency_per_video(rows: pd.DataFrame, first_day: date, last_day: date, tic
 
         parts.append(_series(plant_id, "".join(points)))
 
-    return _svg(frame, "Frequência dominante por vídeo e planta", "".join(parts))
+    return _svg(frame.height, "Frequência dominante por vídeo e planta", "".join(parts))
 
 
-def daily_means(table: pd.DataFrame, first_day: date, last_day: date, ticks: list[float]) -> str:
-    frame = _Frame(first_day, last_day, ticks, 280)
+def daily_means(table: pd.DataFrame) -> str:
+    frame = _shared_axis(table.rename(columns={"mean": "frequency"}), 300, "Frequência dominante média (Hz)")
     parts = [frame.render()]
 
     for plant_id in PLANT_IDS:
@@ -166,4 +183,4 @@ def daily_means(table: pd.DataFrame, first_day: date, last_day: date, ticks: lis
 
         parts.append(_series(plant_id, "".join(series)))
 
-    return _svg(frame, "Frequência dominante média por dia e planta", "".join(parts))
+    return _svg(frame.height, "Frequência dominante média por dia e planta", "".join(parts))

@@ -43,7 +43,7 @@ Derived on every read (`store.run_status`), never stored:
 
 A video enters the analysis only if **both** of its runs are `done`, so the plants are always compared on the same videos.
 
-Dragging over a chart on the analysis page selects a period of whole days (`?start=…&end=…`). The summary, both charts and the daily table then use only the videos of that period, while the vertical axes keep the range of the whole campaign. Hiding a plant from a chart's legend only hides its marks, so the axes never change either.
+Hiding a plant from a chart's legend on the analysis page only hides its marks: the axes keep the range of both plants.
 
 ## Disabled days
 
@@ -114,7 +114,7 @@ A day cannot change while its campaign has an active job, because the worker pic
 - **Exports keep the original absolute paths:** `videos_dir` and `path` are the only link back to the files, and they make an import on the same machine fully working. The cost is that the file reveals the sender's folder names, which the export panel states.
 - **A folder conflict refuses the import instead of merging or renaming:** merging would have to choose between two sets of results for the same run, and a silently renamed folder would break the rule that a folder has one campaign. The user decides by deleting the existing campaign.
 - **Plain SQLite without an ORM:** a handful of tables with one writer at a time.
-- **Charts as inline SVG:** each point links to its video, which turns an odd value into a ROI check in one click. The legend toggles, tooltips and drag-to-zoom are a small script (`static/charts.js`) over that SVG instead of a chart library, which would need a bundle and move the chart calculations out of Python. A zoom asks the server for the period instead of rescaling in the browser, so the tables follow the same period.
-- **Fixed vertical axis on the analysis charts:** rescaling when a plant is hidden or a period is selected would make the same difference look larger or smaller from one view to the next.
+- **Charts as inline SVG:** each point links to its video, which turns an odd value into a ROI check in one click. The legend toggles and tooltips are a small script (`static/charts.js`) over that SVG instead of a chart library, which would need a bundle and move the chart calculations out of Python.
+- **Fixed vertical axis on the analysis charts:** rescaling when a plant is hidden would make the same difference look larger or smaller from one view to the next.
 - **ROIs drawn by the user, not detected:** this keeps the methodology of the published results. A detected ROI could vary between videos and change the comparison.
 - **htmx is vendored in `static/`:** the application must work without internet access.

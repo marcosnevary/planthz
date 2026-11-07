@@ -382,21 +382,3 @@ def test_sidebar_offers_the_campaign_actions(client: TestClient, videos_dir: Pat
         assert f'<a href="{url}" aria-current="page">' in page or f'<a href="{url}" >' in page
         assert '<a href="/campaigns/new">Nova campanha</a>' in page
         assert f'action="{url}/delete"' in page
-
-
-def test_analysis_period_limits_the_tables_and_charts(client: TestClient, videos_dir: Path) -> None:
-    url = create_campaign(client, videos_dir)
-    client.post(f"{url}/rois", data=ROI_FORM)
-    run_batch(url)
-    days = sorted({path.parent.name for path in videos_dir.rglob("*.mp4")})
-
-    whole = client.get(f"{url}/analysis").text
-    first_day = client.get(f"{url}/analysis?start={days[0]}&end={days[0]}").text
-    inverted = client.get(f"{url}/analysis?start={days[-1]}&end={days[0]}").text
-    empty = client.get(f"{url}/analysis?start=2000-01-01&end=2000-01-02").text
-
-    assert "Ver período completo" not in whole
-    assert "Ver período completo" in first_day
-    assert first_day.count("/videos/") < whole.count("/videos/")
-    assert inverted.count("/videos/") == whole.count("/videos/")
-    assert "nenhum vídeo com resultado válido neste período" in empty
