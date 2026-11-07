@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from planthz import charts
-from planthz.analysis import build_analysis, results_csv
+from planthz.analysis import build_analysis, moving_average, results_csv
 from planthz.rois import Roi
 from planthz.store import Result, Run, RunStatus, Video, run_status
 
@@ -144,3 +144,30 @@ def test_daily_chart_moves_lines_and_markers_to_the_same_place_without_the_band(
     assert scale != 1
     for line_y, marker_y, shift in zip(line_ys, marker_ys, shifts, strict=True):
         assert scale * line_y + offset == pytest.approx(marker_y + shift, abs=0.2)
+
+
+def test_moving_average_uses_a_centred_time_window() -> None:
+    rows = pd.DataFrame(
+        {
+            "captured_at": [datetime(2026, 10, 29, hour) for hour in (3, 0, 1, 2)],
+            "frequency": [8.0, 2.0, 4.0, 6.0],
+        },
+        index=[13, 10, 11, 12],
+    )
+
+    means = moving_average(rows, 3)
+
+    assert means.to_dict() == {10: 3.0, 11: 4.0, 12: 6.0, 13: 7.0}
+
+
+def test_per_video_chart_breaks_its_lines_at_days_without_videos() -> None:
+    runs = [
+        make_run(video_id, plant_id, 2.0 + video_id, day=day)
+        for video_id, day in enumerate(["2026-10-29", "2026-10-30", "2026-11-02"], start=1)
+        for plant_id in (1, 2)
+    ]
+
+    chart = charts.frequency_per_video(build_analysis(runs).rows)
+
+    assert chart.count('class="line raw plant-1"') == 2
+    assert chart.count('class="line average plant-1" points') == 2 * 4

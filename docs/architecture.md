@@ -45,6 +45,8 @@ A video enters the analysis only if **both** of its runs are `done`, so the plan
 
 Hiding a plant from a chart's legend on the analysis page only hides its marks: the axes keep the range of both plants.
 
+The per-video chart shows points or a line. As a line it can add a moving average (`analysis.moving_average`): the mean of the plant's videos within a window of 1, 3, 6 or 24 hours centred on each video, so a 3-hour window takes the videos up to 1.5 hours before and after. The window is in time rather than in a number of videos, so a missing video narrows the sample instead of stretching the period. A day without videos breaks the line and the average. `charts.py` renders every view and window, and the browser only switches between them.
+
 The daily chart shades one standard deviation around each plant's daily mean, and its vertical axis covers that band. Hiding the band in the legend moves the chart to an axis that covers only the means: `charts.py` renders both axes, and the browser only switches between them. A day with one video has no standard deviation and adds no height to the band. A day without videos breaks both the line and the band.
 
 ## Disabled days

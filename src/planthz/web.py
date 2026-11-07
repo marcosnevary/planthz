@@ -99,6 +99,7 @@ templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 templates.env.globals["JOB_LABELS"] = JOB_LABELS
 templates.env.globals["RunStatus"] = RunStatus
 templates.env.globals["PLANT_IDS"] = PLANT_IDS
+templates.env.globals["MOVING_AVERAGE_HOURS"] = analysis_module.MOVING_AVERAGE_HOURS
 
 
 def get_db() -> Iterator[sqlite3.Connection]:

@@ -6,6 +6,32 @@
   document.body.append(tip);
 
   document.addEventListener("click", (event) => {
+    const modeButton = event.target.closest(".mode-toggle");
+
+    if (!modeButton) return;
+
+    const panel = modeButton.closest(".chart-panel");
+    const mode = modeButton.dataset.mode;
+    panel.querySelectorAll(".mode-toggle").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button === modeButton));
+    });
+    panel.querySelector(".chart").dataset.mode = mode;
+    panel.querySelector(".moving-average").hidden = mode !== "line";
+  });
+
+  document.addEventListener("change", (event) => {
+    const select = event.target.closest(".moving-average select");
+
+    if (!select) return;
+
+    const chart = select.closest(".chart-panel").querySelector(".chart");
+    chart.toggleAttribute("data-average", select.value !== "");
+    chart.querySelectorAll(".average").forEach((line) => {
+      line.toggleAttribute("hidden", line.dataset.window !== select.value);
+    });
+  });
+
+  document.addEventListener("click", (event) => {
     const button = event.target.closest(".legend-toggle");
 
     if (!button) return;

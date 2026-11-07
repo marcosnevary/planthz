@@ -9,6 +9,7 @@ from html import escape
 
 import pandas as pd
 
+from planthz.analysis import MOVING_AVERAGE_HOURS, moving_average
 from planthz.rois import PLANT_IDS
 
 WIDTH = 1040
@@ -140,16 +141,50 @@ def _series(plant_id: int, content: str) -> str:
     return f'<g class="series" data-plant="{plant_id}">{content}</g>'
 
 
+def _split_at_missing_days(moments: list[datetime]) -> list[slice]:
+    """Split sorted moments into runs, since a day without videos breaks a line instead of bridging it."""
+    breaks = [i for i in range(1, len(moments)) if (moments[i].date() - moments[i - 1].date()).days > 1]
+    starts = [0, *breaks]
+
+    return [slice(start, end) for start, end in zip(starts, [*breaks, len(moments)], strict=True)]
+
+
+def _polyline(css_class: str, xs: list[float], ys: list[float], attributes: str = "") -> str:
+    points = " ".join(f"{x:.1f},{y:.1f}" for x, y in zip(xs, ys, strict=True))
+
+    return f'<polyline class="{css_class}" points="{points}"{attributes}/>'
+
+
 def frequency_per_video(rows: pd.DataFrame) -> str:
     # Both plants share the axes, so hiding one in the legend never rescales the other.
     frame = _shared_axis(rows["day"], rows["frequency"], 300, "Frequência dominante (Hz)")
-    parts = [frame.render()]
+    shapes: list[str] = []
+    markers: list[str] = []
 
     for plant_id in PLANT_IDS:
-        points = []
+        plant_rows = rows[rows["plant_id"] == plant_id].sort_values("captured_at")
+        records = plant_rows.to_dict("records")
+        moments = [row["captured_at"] for row in records]
+        xs = [frame.x(moment) for moment in moments]
+        runs = _split_at_missing_days(moments)
+        css_class = PLANT_CLASSES[plant_id]
+        # The line and the moving averages are drawn for every view; charts.js only shows the chosen one.
+        plant_shapes = [
+            _polyline(f"line raw {css_class}", xs[run], [frame.y(row["frequency"]) for row in records[run]])
+            for run in runs
+        ]
 
-        for row in rows[rows["plant_id"] == plant_id].to_dict("records"):
-            x, y = frame.x(row["captured_at"]), frame.y(row["frequency"])
+        for hours in MOVING_AVERAGE_HOURS:
+            means = [frame.y(mean) for mean in moving_average(plant_rows, hours)]
+            plant_shapes += [
+                _polyline(f"line average {css_class}", xs[run], means[run], f' data-window="{hours}" hidden')
+                for run in runs
+            ]
+
+        plant_markers = []
+
+        for row, x in zip(records, xs, strict=True):
+            y = frame.y(row["frequency"])
             tip = "\n".join(
                 [
                     f"Planta {plant_id} · {row['captured_at']:%d/%m/%Y %H:%M}",
@@ -157,14 +192,15 @@ def frequency_per_video(rows: pd.DataFrame) -> str:
                     f"Vídeo: {row['video']}",
                 ]
             )
-            points.append(
+            plant_markers.append(
                 f'<a href="/videos/{row["video_id"]}" data-tip="{escape(tip)}" aria-label="{escape(tip)}">'
                 f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="8"/>{_marker(plant_id, x, y)}</a>'
             )
 
-        parts.append(_series(plant_id, "".join(points)))
+        shapes.append(_series(plant_id, "".join(plant_shapes)))
+        markers.append(_series(plant_id, "".join(plant_markers)))
 
-    return _svg(frame.height, "Frequência dominante por vídeo e planta", "".join(parts))
+    return _svg(frame.height, "Frequência dominante por vídeo e planta", frame.render() + "".join(shapes + markers))
 
 
 def daily_means(table: pd.DataFrame) -> str:
@@ -187,27 +223,18 @@ def daily_means(table: pd.DataFrame) -> str:
         if not points:
             continue
 
-        segments: list[list[tuple[float, float, float]]] = [[]]
-        previous_day: datetime | None = None
-
-        # A day without videos breaks the line and the band instead of bridging them as if there were data.
-        for moment, value, std, _ in points:
-            if previous_day is not None and moment - previous_day > timedelta(days=1):
-                segments.append([])
-
-            segments[-1].append((frame.x(moment), value, 0.0 if pd.isna(std) else std))
-            previous_day = moment
-
+        xs = [frame.x(moment) for moment, _, _, _ in points]
+        means = [value for _, value, _, _ in points]
+        spreads = [0.0 if pd.isna(std) else std for _, _, std, _ in points]
         plant_shapes: list[str] = []
         plant_markers: list[str] = []
         css_class = PLANT_CLASSES[plant_id]
 
-        for segment in segments:
-            upper = [f"{x:.1f},{frame.y(value + std):.1f}" for x, value, std in segment]
-            lower = [f"{x:.1f},{frame.y(value - std):.1f}" for x, value, std in reversed(segment)]
-            line = [f"{x:.1f},{frame.y(value):.1f}" for x, value, _ in segment]
-            plant_shapes.append(f'<polygon class="band {css_class}" points="{" ".join(upper + lower)}"/>')
-            plant_shapes.append(f'<polyline class="line {css_class}" points="{" ".join(line)}"/>')
+        for run in _split_at_missing_days([moment for moment, _, _, _ in points]):
+            upper = [f"{x:.1f},{frame.y(m + s):.1f}" for x, m, s in zip(xs[run], means[run], spreads[run], strict=True)]
+            lower = [f"{x:.1f},{frame.y(m - s):.1f}" for x, m, s in zip(xs[run], means[run], spreads[run], strict=True)]
+            plant_shapes.append(f'<polygon class="band {css_class}" points="{" ".join(upper + lower[::-1])}"/>')
+            plant_shapes.append(_polyline(f"line {css_class}", xs[run], [frame.y(m) for m in means[run]]))
 
         for moment, value, std, size in points:
             x, y = frame.x(moment), frame.y(value)

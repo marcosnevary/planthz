@@ -34,7 +34,23 @@
 
 <section class="panel chart-panel">
   <h2>Frequência dominante por vídeo</h2>
-  {{ legend() }}
+  <div class="chart-controls">
+    {{ legend() }}
+    <div class="chart-options">
+      <div class="segmented" role="group" aria-label="Tipo de gráfico">
+        <button type="button" class="mode-toggle" data-mode="scatter" aria-pressed="true">Pontos</button>
+        <button type="button" class="mode-toggle" data-mode="line" aria-pressed="false">Linha</button>
+      </div>
+      <label class="moving-average" hidden>Média móvel
+        <select autocomplete="off">
+          <option value="">Desligada</option>
+          {% for hours in MOVING_AVERAGE_HOURS %}
+          <option value="{{ hours }}">{{ hours }} h</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+  </div>
   {{ per_video_chart|safe }}
 </section>
 
