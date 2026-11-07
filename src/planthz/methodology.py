@@ -50,10 +50,7 @@ class SourceMaps:
 
 
 def estimate_dominant_frequency(video_path: Path, roi: Roi) -> Estimate:
-    frames, fps = read_preprocessed(video_path, roi)
-    components, _ = principal_components(_flatten(frames))
-
-    return dominant_source(source_peaks(separate_sources(components[:, :N_PC]), fps))
+    return compute_source_maps(video_path, roi).dominant
 
 
 def compute_source_maps(video_path: Path, roi: Roi) -> SourceMaps:

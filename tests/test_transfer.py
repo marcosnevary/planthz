@@ -1,7 +1,9 @@
+import io
 import json
 import re
 import shutil
 import sqlite3
+import zipfile
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -224,8 +226,10 @@ def test_export_links_are_offered_on_the_campaign_and_import_on_the_new_campaign
     url = create_campaign(client, videos_dir)
 
     assert f'href="{url}/export.json"' in client.get(url).text
+    assert f'href="{url}/export.zip"' in client.get(url).text
     assert 'action="/campaigns/import"' in client.get("/campaigns/new").text
     assert client.get("/campaigns/999/export.json").status_code == 404
+    assert client.get("/campaigns/999/export.zip").status_code == 404
 
 
 def test_a_folder_name_outside_latin1_can_be_downloaded(client: TestClient, videos_dir: Path, tmp_path: Path) -> None:
@@ -285,6 +289,60 @@ def test_import_refuses_a_file_too_large_to_be_an_export(
     monkeypatch.setattr("planthz.transfer.MAX_SIZE", len(export) - 1)
 
     assert "não é uma exportação" in import_file(client, export).text
+
+
+def test_the_archive_brings_the_source_maps_and_frames_to_a_machine_without_the_videos(
+    client: TestClient, own_videos: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    url = processed_campaign(client, own_videos)
+    response = client.get(f"{url}/export.zip")
+    archive = zipfile.ZipFile(io.BytesIO(response.content))
+
+    assert response.headers["content-type"] == "application/zip"
+    assert response.headers["content-disposition"] == "attachment; filename*=UTF-8''semana2_campaign.zip"
+    assert archive.read("campaign.json") == client.get(f"{url}/export.json").content
+    assert sum(name.startswith("source_maps/") for name in archive.namelist()) == 6
+    assert sum(name.startswith("frames/") for name in archive.namelist()) == 3
+
+    move_to_another_machine(monkeypatch, tmp_path, own_videos)
+    imported = import_file(client, response.content).headers["location"]
+    video_id = first_video_id(client, imported.removesuffix("/analysis"))
+
+    assert client.get(f"/videos/{video_id}/frame.jpg").status_code == 200
+    assert len(client.get(f"/videos/{video_id}/plants/1/sources.json").json()["sources"]) == 10
+
+
+def archive_with(members: dict[str, bytes]) -> bytes:
+    buffer = io.BytesIO()
+
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for name, content in members.items():
+            archive.writestr(name, content)
+
+    return buffer.getvalue()
+
+
+def test_import_refuses_an_archive_with_a_damaged_attachment_and_saves_nothing(
+    client: TestClient, own_videos: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    url = processed_campaign(client, own_videos)
+    archive = zipfile.ZipFile(io.BytesIO(client.get(f"{url}/export.zip").content))
+    members = {name: archive.read(name) for name in archive.namelist()}
+    damaged = next(name for name in members if name.startswith("source_maps/"))
+
+    move_to_another_machine(monkeypatch, tmp_path)
+    response = import_file(client, archive_with({**members, damaged: b"not maps"}))
+
+    assert response.status_code == 422
+    assert "incompleto ou corrompido" in response.text
+    assert all(not rows for rows in database_contents().values())
+
+
+def test_import_refuses_an_archive_without_a_campaign(client: TestClient) -> None:
+    response = import_file(client, archive_with({"other.txt": b"hello"}))
+
+    assert response.status_code == 422
+    assert "não é uma exportação" in response.text
 
 
 def test_import_refuses_a_newer_version(client: TestClient, videos_dir: Path) -> None:

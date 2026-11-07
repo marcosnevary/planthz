@@ -39,7 +39,7 @@ Each frame must show both plants, with plant 1 on the left and plant 2 on the ri
 3. **Processing:** new videos in the folder are picked up whenever a campaign page loads. Disable the days you want to skip, then start the batch. It keeps running if the page or the server closes, and it can be stopped and continued.
 4. **Videos:** browse the frames of each day with the ROIs drawn on them.
 5. **Analyses:** read the tables and charts. The sidebar's campaign menu downloads `results.csv` from any page of the campaign.
-6. **Sharing:** "Exportar campanha", in the sidebar's campaign menu, downloads one file with the campaign's ROIs, disabled days and results, without the videos. Whoever receives it chooses "Importar campanha" on the new campaign page and can read the tables, charts and `results.csv` without having the videos.
+6. **Sharing:** "Exportar campanha", in the sidebar's campaign menu, downloads one file with the campaign's ROIs, disabled days and results, without the videos. Whoever receives it chooses "Importar campanha" on the new campaign page and can read the tables, charts and `results.csv` without having the videos. "Exportar com mapas das fontes" downloads a ZIP that also brings the source maps and a frame of each video, so the video page shows where each frequency comes from. It is larger, about 230 KB per processed video.
 
 ## Data
 

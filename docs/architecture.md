@@ -3,7 +3,7 @@
 ## Processes
 
 - **Web server** (`web.py`): FastAPI with Jinja2 templates and HTMX. It binds to localhost only, because it reads any folder the user types.
-- **Worker** (`worker.py`): one process per job, started by `jobs.py` in its own session. It computes the runs one at a time and commits each result together with the job's counters.
+- **Worker** (`worker.py`): one process per job, started by `jobs.py` in its own session. It computes the runs one at a time and commits each result together with the job's counters. Each run also stores its source maps and the video's first frame, so the video page can show them after the video leaves the disk.
 
 Both talk only through SQLite (`~/.planthz/planthz.db`, in WAL mode). The processing page polls `/campaigns/{id}/progress` every 2 seconds while a job is active.
 
@@ -96,9 +96,11 @@ A day cannot change while its campaign has an active job, because the worker pic
 - `on_disk`, which describes one machine. An import checks each video's `path` here instead.
 - The `job` table: a pid and a heartbeat mean nothing elsewhere, and its logs stay in the data folder.
 - `run_history`: nothing computed from a campaign depends on it, so the format stays at this version. Each imported result becomes the first entry of its run's history.
-- Video files and cached frames.
+- Video files, and in the JSON file the cached frames and source maps.
 
 **On a machine without the videos,** a run with a usable result stays `done` or `no_peak`, because `store.run_status` looks at the result before the disk. The analysis, its charts and those runs in `results.csv` therefore match the original exactly. A `failed`, `stale` or `pending` run turns `missing`, since it can only be recomputed from the file, but keeps its stored values and error. The frames, the ROI editor and jobs are unavailable until the videos appear at the same paths. A scan or a started job then finds them and marks them on disk.
+
+**Archive with the source maps:** "Exportar com mapas das fontes" downloads a ZIP with the same `campaign.json`, plus `source_maps/<video>/plant_<n>.npz` for each run without error and `frames/<video>.jpg` for the first frame of each video, as far as this machine has them. The import tells a ZIP from a JSON file by its content, validates every attachment before saving anything, and puts them in its own caches under the paths of the export, which are the cache keys. A missing attachment only leaves that map or frame unavailable. About 230 KB per processed video, half maps and half frame.
 
 **Import is all or nothing:** it runs in one transaction, and any invalid or repeated data leaves the database unchanged. A file whose `videos_dir` already belongs to a campaign is refused, as creating that campaign by hand would be.
 
@@ -108,7 +110,9 @@ A day cannot change while its campaign has an active job, because the worker pic
 
 ## Source maps
 
-`source_maps.py` caches the source maps of each run in `~/.planthz/source_maps`, keyed by video path and ROI, the first time the video page asks for them. A map takes about as long as a run, so the page loads them after rendering. Like the frames, the cache lets the maps outlive the video on disk. The browser (`static/source_maps.js`) colors and animates them, so the server only sends one grayscale PNG per source and the signals.
+`source_maps.py` stores the source maps of each run in `~/.planthz/source_maps`, keyed by video path and ROI. The worker writes them in the same pass that computes the result, which adds about 0.2 s to a run of about 5 s. A result computed before that gets its maps the first time the video page asks for them, if the video is still on disk; it takes as long as a run, so the page loads them after rendering.
+
+Only what the page shows is stored: `|weight|` and `|signal|` per source, scaled to 0–255 and compressed, about 110 KB per run instead of 1.5 MB in float32. The browser (`static/source_maps.js`) colors and animates them, so the server only sends one grayscale PNG per source and the signals.
 
 ## Decisions
 
@@ -125,6 +129,8 @@ A day cannot change while its campaign has an active job, because the worker pic
 - **Charts as inline SVG:** each point links to its video, which turns an odd value into a ROI check in one click. The legend toggles and tooltips are a small script (`static/charts.js`) over that SVG instead of a chart library, which would need a bundle and move the chart calculations out of Python.
 - **Fixed vertical axis when a plant is hidden:** rescaling would make the same difference between plants look larger or smaller from one view to the next. Hiding the band is different: its axis is mostly empty space around the means, so the chart rescales to them.
 - **ROIs drawn by the user, not detected:** this keeps the methodology of the published results. A detected ROI could vary between videos and change the comparison.
-- **Source maps cached as files, not in SQLite:** they are only for inspection, can be recomputed from the video, and would make the database and the export much larger.
+- **Source maps stored as files, not in SQLite:** they are only for inspection and would make the database much larger. They also stay out of the JSON export, which keeps it small enough to email, and go in a separate archive instead.
+- **Source maps computed during processing:** the video is often deleted after processing to free space, and the maps can only be computed from it. Computing them in the same pass costs little, while computing them later would need every video kept on disk until someone opens its page.
+- **The archive wraps the JSON export instead of changing its version:** the JSON stays readable and importable as it was, and the attachments, already compressed, are stored without compressing them again.
 - **Source animation in the browser instead of a video file:** OpenCV writes `mp4v`, which browsers do not play. H.264 would need ffmpeg and one file per video, plant and source, while the browser needs only the map and the signal.
 - **htmx is vendored in `static/`:** the application must work without internet access.

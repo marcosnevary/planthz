@@ -1,4 +1,6 @@
+import os
 import sqlite3
+import tempfile
 from collections import Counter, defaultdict
 from collections.abc import Iterator
 from datetime import datetime
@@ -7,14 +9,15 @@ from typing import Annotated, Any
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.background import BackgroundTask
 
 from planthz import analysis as analysis_module
 from planthz import charts, frames, jobs, source_maps, store, transfer
 from planthz.db import connect
-from planthz.methodology import FREQUENCY_THRESHOLD, N_PC, SourceMaps
+from planthz.methodology import FREQUENCY_THRESHOLD, N_PC
 from planthz.rois import PLANT_IDS, Roi, validate_plants
 from planthz.scan import scan_videos
 from planthz.store import RunStatus
@@ -221,7 +224,7 @@ def create_campaign(
 @app.post("/campaigns/import")
 def import_campaign(request: Request, db: Db, file: Annotated[UploadFile, File()]) -> Response:
     try:
-        campaign_id = transfer.import_campaign(db, file.file.read(transfer.MAX_SIZE + 1))
+        campaign_id = transfer.import_file(db, file.file)
     except transfer.ImportRejected as rejected:
         return _new_campaign_page(request, db, import_error=str(rejected))
 
@@ -237,6 +240,21 @@ def export_campaign(db: Db, campaign_id: int) -> Response:
         transfer.export_campaign(db, campaign_id),
         media_type="application/json",
         headers=_attachment(campaign, "campaign.json"),
+    )
+
+
+@app.get("/campaigns/{campaign_id}/export.zip")
+def export_archive(db: Db, campaign_id: int) -> Response:
+    campaign = require_campaign(db, campaign_id)
+    # On disk rather than in memory, since the maps and frames of a campaign add up to hundreds of MB.
+    with tempfile.NamedTemporaryFile(prefix="planthz-", suffix=".zip", delete=False) as file:
+        transfer.export_archive(db, campaign_id, file)
+
+    return FileResponse(
+        file.name,
+        media_type="application/zip",
+        headers=_attachment(campaign, "campaign.zip"),
+        background=BackgroundTask(os.unlink, file.name),
     )
 
 
@@ -538,7 +556,7 @@ def _video_runs(db: sqlite3.Connection, video: store.Video) -> list[store.Run]:
     return [run for run in store.list_runs(db, video.campaign_id, video.day) if run.video.id == video.id]
 
 
-def require_source_maps(db: sqlite3.Connection, video_id: int, plant_id: int) -> SourceMaps:
+def require_source_maps(db: sqlite3.Connection, video_id: int, plant_id: int) -> source_maps.StoredMaps:
     video = require_video(db, video_id)
     result = next((run.result for run in _video_runs(db, video) if run.plant_id == plant_id), None)
 
@@ -547,7 +565,7 @@ def require_source_maps(db: sqlite3.Connection, video_id: int, plant_id: int) ->
 
     # The result's ROI, not the campaign's, so the map explains the frequency shown on the page.
     try:
-        return source_maps.source_maps(video.path, result.roi)
+        return source_maps.stored_maps(video.path, result.roi)
     except source_maps.SourceMapsUnavailable as unavailable:
         raise HTTPException(404, "O mapa das fontes não está disponível.") from unavailable
 
@@ -558,13 +576,13 @@ def video_sources(db: Db, video_id: int, plant_id: int) -> dict[str, Any]:
 
     return {
         "fps": maps.fps,
-        "dominant": maps.dominant.source,
+        "dominant": maps.dominant,
         "sources": [
             {
                 "index": index,
                 "frequency": frequency,
                 "power": power,
-                "signal": source_maps.normalized_signal(maps, index),
+                "signal": source_maps.intensity(maps, index),
             }
             for index, (frequency, power) in enumerate(maps.peaks)
         ],

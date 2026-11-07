@@ -271,12 +271,25 @@ def test_source_maps_explain_the_stored_result(client: TestClient, own_videos: P
     assert png.headers["content-type"] == "image/png"
     assert client.get(f"/videos/{video_id}/plants/1/sources/10.png").status_code == 404
 
-    # The cache keeps the maps once the video leaves the disk.
+
+def test_processing_keeps_the_source_maps_and_frame_for_when_the_video_leaves_the_disk(
+    client: TestClient, own_videos: Path, data_dir: Path
+) -> None:
+    url = create_campaign(client, own_videos)
+    client.post(f"{url}/rois", data=ROI_FORM)
+    run_batch(url)
+    video_id = first_video_id(client, url)
+
     for video in own_videos.rglob("*.mp4"):
         video.unlink()
 
-    assert client.get(f"/videos/{video_id}/plants/1/sources.json").json() == sources
-    assert client.get(f"/videos/{video_id}/plants/2/sources.json").status_code == 404
+    assert client.get(f"/videos/{video_id}/frame.jpg").status_code == 200
+
+    for plant_id in (1, 2):
+        assert len(client.get(f"/videos/{video_id}/plants/{plant_id}/sources.json").json()["sources"]) == 10
+
+    shutil.rmtree(data_dir / "source_maps")
+    assert client.get(f"/videos/{video_id}/plants/1/sources.json").status_code == 404
 
 
 def test_source_maps_need_a_result(client: TestClient, videos_dir: Path) -> None:

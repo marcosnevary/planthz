@@ -28,7 +28,7 @@
   {% if import_error %}<p class="alert error" role="alert">{{ import_error }}</p>{% endif %}
   <form method="post" action="/campaigns/import" enctype="multipart/form-data" class="stack">
     <label>Arquivo da campanha
-      <input type="file" name="file" accept=".json,application/json" required>
+      <input type="file" name="file" accept=".json,.zip,application/json,application/zip" required>
     </label>
     <button type="submit">Importar campanha</button>
   </form>
