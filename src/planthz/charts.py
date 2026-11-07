@@ -108,13 +108,13 @@ def _svg(height: int, label: str, content: str) -> str:
     return f'<svg class="chart" viewBox="0 0 {WIDTH} {height}" role="img" aria-label="{escape(label)}">{content}</svg>'
 
 
-def _shared_axis(rows: pd.DataFrame, height: int, y_label: str) -> _Frame:
-    days = pd.to_datetime(rows["day"])
+def _shared_axis(days: pd.Series, values: pd.Series, height: int, y_label: str) -> _Frame:
+    moments = pd.to_datetime(days)
 
     return _Frame(
-        days.min().date(),
-        days.max().date(),
-        _nice_ticks(float(rows["frequency"].min()), float(rows["frequency"].max())),
+        moments.min().date(),
+        moments.max().date(),
+        _nice_ticks(float(values.min()), float(values.max())),
         height,
         y_label,
     )
@@ -126,7 +126,7 @@ def _series(plant_id: int, content: str) -> str:
 
 def frequency_per_video(rows: pd.DataFrame) -> str:
     # Both plants share the axes, so hiding one in the legend never rescales the other.
-    frame = _shared_axis(rows, 300, "Frequência dominante (Hz)")
+    frame = _shared_axis(rows["day"], rows["frequency"], 300, "Frequência dominante (Hz)")
     parts = [frame.render()]
 
     for plant_id in PLANT_IDS:
@@ -146,36 +146,53 @@ def frequency_per_video(rows: pd.DataFrame) -> str:
 
 
 def daily_means(table: pd.DataFrame) -> str:
-    frame = _shared_axis(table.rename(columns={"mean": "frequency"}), 300, "Frequência dominante média (Hz)")
+    # A day with a single video has no standard deviation, so its band has no height.
+    spread = table["std"].fillna(0)
+    frame = _shared_axis(
+        table["day"],
+        pd.concat([table["mean"] - spread, table["mean"] + spread]),
+        300,
+        "Frequência dominante média (Hz)",
+    )
     parts = [frame.render()]
 
     for plant_id in PLANT_IDS:
         points = [
-            (datetime.fromisoformat(row["day"]) + timedelta(hours=12), row["mean"], row["size"])
+            (datetime.fromisoformat(row["day"]) + timedelta(hours=12), row["mean"], row["std"], row["size"])
             for row in table[table["plant_id"] == plant_id].to_dict("records")
         ]
 
         if not points:
             continue
 
-        series: list[str] = []
-        segment: list[str] = []
+        segments: list[list[tuple[float, float, float]]] = [[]]
         previous_day: datetime | None = None
 
-        # A day without videos breaks the line instead of being bridged as if there were data.
-        for moment, value, _ in points:
+        # A day without videos breaks the line and the band instead of bridging them as if there were data.
+        for moment, value, std, _ in points:
             if previous_day is not None and moment - previous_day > timedelta(days=1):
-                series.append(f'<polyline class="line {PLANT_CLASSES[plant_id]}" points="{" ".join(segment)}"/>')
-                segment = []
+                segments.append([])
 
-            segment.append(f"{frame.x(moment):.1f},{frame.y(value):.1f}")
+            segments[-1].append((frame.x(moment), value, 0.0 if pd.isna(std) else std))
             previous_day = moment
 
-        series.append(f'<polyline class="line {PLANT_CLASSES[plant_id]}" points="{" ".join(segment)}"/>')
+        series: list[str] = []
+        css_class = PLANT_CLASSES[plant_id]
 
-        for moment, value, size in points:
+        for segment in segments:
+            upper = [f"{x:.1f},{frame.y(value + std):.1f}" for x, value, std in segment]
+            lower = [f"{x:.1f},{frame.y(value - std):.1f}" for x, value, std in reversed(segment)]
+            line = [f"{x:.1f},{frame.y(value):.1f}" for x, value, _ in segment]
+            series.append(f'<polygon class="band {css_class}" points="{" ".join(upper + lower)}"/>')
+            series.append(f'<polyline class="line {css_class}" points="{" ".join(line)}"/>')
+
+        for moment, value, std, size in points:
             x, y = frame.x(moment), frame.y(value)
-            tip = f"Planta {plant_id} · {moment:%d/%m} · {_hz(value)} Hz · {size} vídeo{'s' if size != 1 else ''}"
+            deviation = "" if pd.isna(std) else f" ± {_hz(std)}"
+            tip = (
+                f"Planta {plant_id} · {moment:%d/%m} · {_hz(value)}{deviation} Hz · "
+                f"{size} vídeo{'s' if size != 1 else ''}"
+            )
             series.append(
                 f'<g data-tip="{escape(tip)}" aria-label="{escape(tip)}">'
                 f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="10"/>{_marker(plant_id, x, y, 4.5)}</g>'
@@ -183,4 +200,4 @@ def daily_means(table: pd.DataFrame) -> str:
 
         parts.append(_series(plant_id, "".join(series)))
 
-    return _svg(frame.height, "Frequência dominante média por dia e planta", "".join(parts))
+    return _svg(frame.height, "Frequência dominante média e desvio padrão por dia e planta", "".join(parts))

@@ -99,3 +99,21 @@ def test_daily_chart_breaks_the_line_at_days_without_videos() -> None:
     )
 
     assert charts.daily_means(table).count("<polyline") == 2
+
+
+def test_daily_chart_shades_the_standard_deviation_within_the_axis() -> None:
+    table = pd.DataFrame(
+        {
+            "day": ["2026-10-29", "2026-10-30"],
+            "plant_id": [1, 1],
+            "mean": [2.0, 3.0],
+            "std": [1.0, None],
+            "size": [5, 1],
+        }
+    )
+
+    chart = charts.daily_means(table)
+
+    assert chart.count('class="band plant-1"') == 1
+    assert ">1,0</text>" in chart
+    assert "2,00 ± 1,00 Hz" in chart
