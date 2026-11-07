@@ -31,7 +31,7 @@ The only behavior added to the numeric path: a ROI that does not fit in the fram
 
 ## Source maps
 
-The video page shows where in the ROI each source comes from, as marajo's `notebooks/main_overlay.ipynb` does with `compute_source_spatial_maps` and the overlay videos in `scripts/services.py`. Only for inspection: the maps are not part of the results or the export.
+The video page shows where in the ROI each source comes from, as marajo's `notebooks/main_overlay.ipynb` does with `compute_source_spatial_maps` and the overlay videos in `scripts/services.py`. Only for inspection: the maps are not part of the results, though the export carries them.
 
 - **Map:** the least-squares mixing `A` that rebuilds the PCA components from the sources (`components ≈ sources @ A`), applied to the PCA scores of each pixel: `scores[:, :N_PC] @ A.T`. One weight per pixel of the preprocessed ROI (20% scale, as read back from the encoder, which rounds odd sizes down to even ones).
 - **Display:** sign and scale of a source are arbitrary, so the map shows `|weight|` normalized to its maximum, colored with the JET colormap. Pixels below 0.15 are transparent, and the opacity rises from there to 1.

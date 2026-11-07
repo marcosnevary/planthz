@@ -232,23 +232,12 @@ def import_campaign(request: Request, db: Db, file: Annotated[UploadFile, File()
     return RedirectResponse(f"/campaigns/{campaign_id}/analysis", status_code=303)
 
 
-@app.get("/campaigns/{campaign_id}/export.json")
-def export_campaign(db: Db, campaign_id: int) -> Response:
-    campaign = require_campaign(db, campaign_id)
-
-    return Response(
-        transfer.export_campaign(db, campaign_id),
-        media_type="application/json",
-        headers=_attachment(campaign, "campaign.json"),
-    )
-
-
 @app.get("/campaigns/{campaign_id}/export.zip")
-def export_archive(db: Db, campaign_id: int) -> Response:
+def export_campaign(db: Db, campaign_id: int) -> Response:
     campaign = require_campaign(db, campaign_id)
     # On disk rather than in memory, since the maps and frames of a campaign add up to hundreds of MB.
     with tempfile.NamedTemporaryFile(prefix="planthz-", suffix=".zip", delete=False) as file:
-        transfer.export_archive(db, campaign_id, file)
+        transfer.export_campaign(db, campaign_id, file)
 
     return FileResponse(
         file.name,

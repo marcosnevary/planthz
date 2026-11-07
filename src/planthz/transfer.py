@@ -1,7 +1,7 @@
-"""Writes a campaign to one JSON file and recreates it from that file, for sharing between machines.
+"""Writes a campaign to a ZIP file and recreates it from that file, for sharing between machines.
 
-The archive is a ZIP with that same JSON file, plus the source maps and video frames the video page
-needs to show the maps without the videos.
+The ZIP holds the campaign as one JSON file, plus the source maps and video frames the video page
+needs to show the maps without the videos. Exports from before the maps are that JSON file alone.
 """
 
 import json
@@ -83,7 +83,7 @@ class CampaignExport(_Model):
     videos: list[ExportedVideo]
 
 
-def export_campaign(db: sqlite3.Connection, campaign_id: int) -> str:
+def campaign_json(db: sqlite3.Connection, campaign_id: int) -> str:
     campaign = store.get_campaign(db, campaign_id)
     assert campaign is not None
     rois = store.get_rois(db, campaign_id)
@@ -202,7 +202,7 @@ def _attachments(videos: list[tuple[str, Path, list[tuple[int, Roi]]]]) -> Itera
             yield _Attachment(f"source_maps/{name}/plant_{plant_id}.npz", path, roi)
 
 
-def export_archive(db: sqlite3.Connection, campaign_id: int, file: IO[bytes]) -> None:
+def export_campaign(db: sqlite3.Connection, campaign_id: int, file: IO[bytes]) -> None:
     """Write the export with the source maps and frames this machine has for the campaign's results."""
     results: dict[int, list[tuple[int, Roi]]] = defaultdict(list)
 
@@ -214,7 +214,7 @@ def export_archive(db: sqlite3.Connection, campaign_id: int, file: IO[bytes]) ->
 
     # The maps and frames are already compressed, so compressing them again only costs time.
     with zipfile.ZipFile(file, "w", zipfile.ZIP_STORED) as archive:
-        archive.writestr(ARCHIVE_CAMPAIGN, export_campaign(db, campaign_id))
+        archive.writestr(ARCHIVE_CAMPAIGN, campaign_json(db, campaign_id), zipfile.ZIP_DEFLATED)
 
         for attachment in _attachments(videos):
             if attachment.cache_path.is_file():

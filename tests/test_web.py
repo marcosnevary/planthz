@@ -129,9 +129,9 @@ def test_campaign_menu_shows_the_folder_and_holds_the_downloads(client: TestClie
     before_menu, menu = sidebar.split('<details class="campaign-menu">')
 
     assert str(videos_dir) in menu
-    assert f"{url}/export.json" in menu
+    assert f"{url}/export.zip" in menu
     assert f"{url}/results.csv" in menu
-    assert f"{url}/export.json" not in before_menu
+    assert f"{url}/export.zip" not in before_menu
     assert f"{url}/results.csv" not in before_menu
 
 

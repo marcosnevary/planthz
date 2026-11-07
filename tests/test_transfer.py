@@ -47,6 +47,10 @@ def processed_campaign(client: TestClient, videos: Path) -> str:
     return url
 
 
+def exported_json(client: TestClient, url: str) -> bytes:
+    return zipfile.ZipFile(io.BytesIO(client.get(f"{url}/export.zip").content)).read("campaign.json")
+
+
 def import_file(client: TestClient, content: bytes | str) -> Any:
     return client.post("/campaigns/import", files={"file": ("campaign.json", content)}, follow_redirects=False)
 
@@ -104,10 +108,11 @@ def test_round_trip_keeps_everything_where_the_videos_do_not_exist(
     assert tables_before["result"] and tables_before["disabled_day"]
     assert "no_time.mp4" in tables_before["campaign"][0][2]
     video_id = first_video_id(client, url)
-    export = client.get(f"{url}/export.json")
+    export = client.get(f"{url}/export.zip")
     csv = client.get(f"{url}/results.csv")
     analysis = client.get(f"{url}/analysis").text
     video_results = [results_of(client.get(f"/videos/{video_id + offset}").text) for offset in range(3)]
+    exported_json_before = exported_json(client, url)
 
     move_to_another_machine(monkeypatch, tmp_path, own_videos)
     response = import_file(client, export.content)
@@ -121,27 +126,27 @@ def test_round_trip_keeps_everything_where_the_videos_do_not_exist(
     assert client.get(f"{new_url}/results.csv").content == csv.content
     assert client.get(f"{new_url}/results.csv").headers["content-disposition"] == csv.headers["content-disposition"]
     assert [results_of(client.get(f"/videos/{new_video_id + offset}").text) for offset in range(3)] == video_results
-    assert client.get(f"{new_url}/export.json").content == export.content
+    assert exported_json(client, new_url) == exported_json_before
 
 
 def test_an_export_of_a_campaign_without_rois_or_results_comes_back_the_same(
     client: TestClient, videos_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url = create_campaign(client, videos_dir)
-    export = client.get(f"{url}/export.json").content
+    export = exported_json(client, url)
 
     move_to_another_machine(monkeypatch, tmp_path)
     new_url = import_file(client, export).headers["location"].removesuffix("/analysis")
 
     assert "Desenhe os ROIs" in client.get(new_url).text
-    assert client.get(f"{new_url}/export.json").content == export
+    assert exported_json(client, new_url) == export
 
 
 def test_results_survive_the_actions_of_a_machine_without_the_videos(
     client: TestClient, own_videos: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url = processed_campaign(client, own_videos)
-    export = client.get(f"{url}/export.json").content
+    export = exported_json(client, url)
     move_to_another_machine(monkeypatch, tmp_path, own_videos)
     new_url = import_file(client, export).headers["location"].removesuffix("/analysis")
     analysis = main_of(client.get(f"{new_url}/analysis").text)
@@ -174,7 +179,7 @@ def test_runs_that_need_the_file_turn_missing_and_keep_what_they_stored(
     tables = database_contents()
     statuses_before = [line.split(",")[4] for line in client.get(f"{url}/results.csv").text.splitlines()[1:]]
     assert {"failed", "stale"} <= set(statuses_before)
-    export = client.get(f"{url}/export.json").content
+    export = exported_json(client, url)
 
     move_to_another_machine(monkeypatch, tmp_path, own_videos)
     new_url = import_file(client, export).headers["location"].removesuffix("/analysis")
@@ -193,7 +198,7 @@ def test_import_finds_the_videos_that_are_on_this_machine(
     url = create_campaign(client, videos_dir)
     client.post(f"{url}/rois", data=ROI_FORM)
     run_batch(url)
-    export = client.get(f"{url}/export.json").content
+    export = exported_json(client, url)
 
     move_to_another_machine(monkeypatch, tmp_path)
     new_url = import_file(client, export).headers["location"].removesuffix("/analysis")
@@ -204,14 +209,12 @@ def test_import_finds_the_videos_that_are_on_this_machine(
     assert "3 resultados foram calculados" in client.get(new_url).text
 
 
-def test_the_export_is_one_readable_file_without_ids_or_job_history(client: TestClient, own_videos: Path) -> None:
+def test_the_export_holds_a_readable_campaign_file_without_ids_or_job_history(
+    client: TestClient, own_videos: Path
+) -> None:
     url = processed_campaign(client, own_videos)
+    export = json.loads(exported_json(client, url))
 
-    response = client.get(f"{url}/export.json")
-    export = response.json()
-
-    assert response.headers["content-type"] == "application/json"
-    assert response.headers["content-disposition"] == "attachment; filename*=UTF-8''semana2_campaign.json"
     assert export["format"] == "planthz-campaign"
     assert export["version"] == 1
     assert export["disabled_days"] == [DAY]
@@ -225,10 +228,8 @@ def test_export_links_are_offered_on_the_campaign_and_import_on_the_new_campaign
 ) -> None:
     url = create_campaign(client, videos_dir)
 
-    assert f'href="{url}/export.json"' in client.get(url).text
     assert f'href="{url}/export.zip"' in client.get(url).text
     assert 'action="/campaigns/import"' in client.get("/campaigns/new").text
-    assert client.get("/campaigns/999/export.json").status_code == 404
     assert client.get("/campaigns/999/export.zip").status_code == 404
 
 
@@ -237,13 +238,13 @@ def test_a_folder_name_outside_latin1_can_be_downloaded(client: TestClient, vide
     shutil.copytree(videos_dir, videos)
     url = create_campaign(client, videos)
 
-    assert client.get(f"{url}/export.json").status_code == 200
+    assert client.get(f"{url}/export.zip").status_code == 200
     assert client.get(f"{url}/results.csv").status_code == 200
 
 
 def test_import_refuses_a_folder_that_already_has_a_campaign(client: TestClient, videos_dir: Path) -> None:
     url = create_campaign(client, videos_dir)
-    export = client.get(f"{url}/export.json").content
+    export = exported_json(client, url)
 
     response = import_file(client, export)
 
@@ -255,7 +256,7 @@ def test_import_refuses_a_folder_that_already_has_a_campaign(client: TestClient,
 
 def test_import_works_again_after_deleting_the_campaign(client: TestClient, videos_dir: Path) -> None:
     url = create_campaign(client, videos_dir)
-    export = client.get(f"{url}/export.json").content
+    export = exported_json(client, url)
     client.post(f"{url}/delete")
 
     assert import_file(client, export).status_code == 303
@@ -284,14 +285,14 @@ def test_import_refuses_a_file_too_large_to_be_an_export(
     client: TestClient, monkeypatch: pytest.MonkeyPatch, videos_dir: Path
 ) -> None:
     url = create_campaign(client, videos_dir)
-    export = client.get(f"{url}/export.json").content
+    export = exported_json(client, url)
     client.post(f"{url}/delete")
     monkeypatch.setattr("planthz.transfer.MAX_SIZE", len(export) - 1)
 
     assert "não é uma exportação" in import_file(client, export).text
 
 
-def test_the_archive_brings_the_source_maps_and_frames_to_a_machine_without_the_videos(
+def test_the_export_brings_the_source_maps_and_frames_to_a_machine_without_the_videos(
     client: TestClient, own_videos: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url = processed_campaign(client, own_videos)
@@ -300,7 +301,6 @@ def test_the_archive_brings_the_source_maps_and_frames_to_a_machine_without_the_
 
     assert response.headers["content-type"] == "application/zip"
     assert response.headers["content-disposition"] == "attachment; filename*=UTF-8''semana2_campaign.zip"
-    assert archive.read("campaign.json") == client.get(f"{url}/export.json").content
     assert sum(name.startswith("source_maps/") for name in archive.namelist()) == 6
     assert sum(name.startswith("frames/") for name in archive.namelist()) == 3
 
@@ -322,7 +322,7 @@ def archive_with(members: dict[str, bytes]) -> bytes:
     return buffer.getvalue()
 
 
-def test_import_refuses_an_archive_with_a_damaged_attachment_and_saves_nothing(
+def test_import_refuses_an_export_with_a_damaged_attachment_and_saves_nothing(
     client: TestClient, own_videos: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url = processed_campaign(client, own_videos)
@@ -338,7 +338,7 @@ def test_import_refuses_an_archive_with_a_damaged_attachment_and_saves_nothing(
     assert all(not rows for rows in database_contents().values())
 
 
-def test_import_refuses_an_archive_without_a_campaign(client: TestClient) -> None:
+def test_import_refuses_a_zip_without_a_campaign(client: TestClient) -> None:
     response = import_file(client, archive_with({"other.txt": b"hello"}))
 
     assert response.status_code == 422
@@ -347,7 +347,7 @@ def test_import_refuses_an_archive_without_a_campaign(client: TestClient) -> Non
 
 def test_import_refuses_a_newer_version(client: TestClient, videos_dir: Path) -> None:
     url = create_campaign(client, videos_dir)
-    export = client.get(f"{url}/export.json").json()
+    export = json.loads(exported_json(client, url))
     client.post(f"{url}/delete")
 
     response = import_file(client, json.dumps({**export, "version": 2}))
@@ -413,7 +413,7 @@ def test_import_refuses_a_damaged_export_and_saves_nothing(
     url = create_campaign(client, videos_dir)
     client.post(f"{url}/rois", data=ROI_FORM)
     run_batch(url)
-    export = client.get(f"{url}/export.json").json()
+    export = json.loads(exported_json(client, url))
     _break_field(export, breakage)
 
     move_to_another_machine(monkeypatch, tmp_path)
@@ -428,7 +428,7 @@ def test_imported_text_is_escaped(client: TestClient, videos_dir: Path) -> None:
     url = create_campaign(client, videos_dir)
     client.post(f"{url}/rois", data=ROI_FORM)
     run_batch(url)
-    export = client.get(f"{url}/export.json").json()
+    export = json.loads(exported_json(client, url))
     client.post(f"{url}/delete")
     attack = "<script>alert(1)</script>"
     export["campaign"]["name"] = attack

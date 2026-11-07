@@ -34,10 +34,8 @@
             {% endfor %}
           </nav>
           <div class="campaign-actions">
-            <a href="/campaigns/{{ campaign.id }}/export.json"
-               title="Baixe um arquivo com os ROIs, os dias desativados e os resultados da campanha, para importar em outro computador. Ele inclui o caminho da pasta, mas não os vídeos.">Exportar campanha</a>
             <a href="/campaigns/{{ campaign.id }}/export.zip"
-               title="Como Exportar campanha, mais os mapas das fontes e um quadro de cada vídeo, para ver de onde vem cada frequência sem os vídeos. O arquivo fica bem maior: cerca de 230 KB por vídeo processado.">Exportar com mapas das fontes</a>
+               title="Baixe um arquivo com os ROIs, os dias desativados, os resultados e os mapas das fontes da campanha, para importar em outro computador. Ele inclui o caminho da pasta e um quadro de cada vídeo, mas não os vídeos.">Exportar campanha</a>
             <a href="/campaigns/{{ campaign.id }}/results.csv">Baixar resultados</a>
             <a href="/campaigns/new">Nova campanha</a>
             <form method="post" action="/campaigns/{{ campaign.id }}/delete"
