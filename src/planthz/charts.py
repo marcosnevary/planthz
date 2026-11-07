@@ -71,11 +71,11 @@ class _Frame:
 
         return scale, other.y(0) - scale * self.y(0)
 
-    def render(self) -> str:
+    def render(self, day_lines: bool = True) -> str:
         bottom = self.height - MARGIN["bottom"]
         parts = [self.render_y_axis()]
 
-        for offset in range(self.days + 1):
+        for offset in range(self.days + 1 if day_lines else 0):
             x = self.x(self.start + timedelta(days=offset))
             parts.append(f'<line class="grid" x1="{x:.1f}" x2="{x:.1f}" y1="{MARGIN["top"]}" y2="{bottom}"/>')
 
@@ -233,7 +233,7 @@ def daily_means(table: pd.DataFrame) -> str:
     return _svg(
         frame.height,
         "Frequência dominante média e desvio padrão por dia e planta",
-        frame.render()
+        frame.render(day_lines=False)
         + without_band.render_y_axis("y-axis without-band")
         + f'<g class="rescaled">{"".join(shapes)}</g>'
         + "".join(markers),
