@@ -288,16 +288,13 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .chart { display: block; width: 100%; height: auto; margin-bottom: 12px; font-size: 12px; }
 .chart .series[hidden] { display: none; }
 /* Hiding the band moves the daily chart to the axis of the means alone; charts.py computes both. */
-.chart .y-axis, .chart .rescaled, .chart .point { transition: opacity 0.4s ease, transform 0.4s ease; }
-/* The band leaves at once and comes back only once the lines have reached it, never mid-move. */
-.chart .band { transition: opacity 0s 0.4s; }
-.chart[data-without-band] .band { transition: none; }
+.chart .y-axis { transition: opacity 0.4s ease; }
 .chart .y-axis.without-band, .chart[data-without-band] .y-axis:not(.without-band), .chart[data-without-band] .band { opacity: 0; }
 .chart[data-without-band] .y-axis.without-band { opacity: 1; }
 .chart[data-without-band] .rescaled { transform: var(--rescale); }
 .chart[data-without-band] .point { transform: translateY(var(--shift)); }
 @media (prefers-reduced-motion: reduce) {
-  .chart .y-axis, .chart .band, .chart .rescaled, .chart .point { transition: none; }
+  .chart .y-axis { transition: none; }
 }
 .chart .grid { stroke: var(--line); stroke-width: 1; }
 .chart .day-line { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
