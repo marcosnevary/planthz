@@ -227,7 +227,8 @@ def test_full_flow_from_rois_to_analysis(client: TestClient, videos_dir: Path) -
     assert "Hz" in client.get(f"{url}/videos").text
 
     analysis = client.get(f"{url}/analysis").text
-    assert "Resumo por planta" in analysis
+    assert "plant-card" in analysis
+    assert "3 vídeos" in analysis
     assert "<svg" in analysis
 
     video_id = first_video_id(client, url)

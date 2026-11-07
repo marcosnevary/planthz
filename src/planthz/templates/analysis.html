@@ -15,26 +15,24 @@
 {% if not has_data %}
 <p class="alert page-alert">Ainda não há vídeos com resultado válido para as duas plantas. <a href="/campaigns/{{ campaign.id }}">Ir para o processamento</a></p>
 {% else %}
-<section class="panel">
-  <h2>Resumo por planta</h2>
-  <table>
-    <thead><tr><th>Planta</th><th class="num">Média (Hz)</th><th class="num">Mediana (Hz)</th><th class="num">Desvio padrão (Hz)</th><th class="num">Vídeos</th></tr></thead>
-    <tbody>
-      {% for row in summary %}
-      <tr>
-        <td><span class="swatch plant-{{ row.Index }}"></span> Planta {{ row.Index }}</td>
-        <td class="num">{{ row.mean|decimal }}</td>
-        <td class="num">{{ row.median|decimal }}</td>
-        <td class="num">{{ row.std|decimal }}</td>
-        <td class="num">{{ row.size }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
+<div class="plant-cards">
+  {% for row in summary %}
+  <section class="plant-card plant-{{ row.Index }}">
+    <h2><span class="swatch plant-{{ row.Index }}"></span> Planta {{ row.Index }}</h2>
+    <dl>
+      <dt class="plant-card-mean">Média</dt><dd class="plant-card-mean">{{ row.mean|decimal }} Hz</dd>
+      <dt>Mediana</dt><dd>{{ row.median|decimal }} Hz</dd>
+      <dt>Desvio padrão</dt><dd>{{ row.std|decimal }} Hz</dd>
+    </dl>
+  </section>
+  {% endfor %}
+</div>
 
 <section class="panel chart-panel">
-  <h2>Frequência dominante por vídeo</h2>
+  <div class="panel-head">
+    <h2>Frequência dominante por vídeo</h2>
+    <span class="muted">{{ video_count }} vídeos</span>
+  </div>
   <div class="chart-controls">
     {{ legend() }}
     <div class="chart-options">
