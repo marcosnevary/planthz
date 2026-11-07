@@ -154,7 +154,8 @@ def daily_means(table: pd.DataFrame) -> str:
         300,
         "Frequência dominante média (Hz)",
     )
-    parts = [frame.render()]
+    shapes: list[str] = []
+    markers: list[str] = []
 
     for plant_id in PLANT_IDS:
         points = [
@@ -176,15 +177,16 @@ def daily_means(table: pd.DataFrame) -> str:
             segments[-1].append((frame.x(moment), value, 0.0 if pd.isna(std) else std))
             previous_day = moment
 
-        series: list[str] = []
+        plant_shapes: list[str] = []
+        plant_markers: list[str] = []
         css_class = PLANT_CLASSES[plant_id]
 
         for segment in segments:
             upper = [f"{x:.1f},{frame.y(value + std):.1f}" for x, value, std in segment]
             lower = [f"{x:.1f},{frame.y(value - std):.1f}" for x, value, std in reversed(segment)]
             line = [f"{x:.1f},{frame.y(value):.1f}" for x, value, _ in segment]
-            series.append(f'<polygon class="band {css_class}" points="{" ".join(upper + lower)}"/>')
-            series.append(f'<polyline class="line {css_class}" points="{" ".join(line)}"/>')
+            plant_shapes.append(f'<polygon class="band {css_class}" points="{" ".join(upper + lower)}"/>')
+            plant_shapes.append(f'<polyline class="line {css_class}" points="{" ".join(line)}"/>')
 
         for moment, value, std, size in points:
             x, y = frame.x(moment), frame.y(value)
@@ -193,11 +195,17 @@ def daily_means(table: pd.DataFrame) -> str:
                 f"Planta {plant_id} · {moment:%d/%m} · {_hz(value)}{deviation} Hz · "
                 f"{size} vídeo{'s' if size != 1 else ''}"
             )
-            series.append(
+            plant_markers.append(
                 f'<g data-tip="{escape(tip)}" aria-label="{escape(tip)}">'
                 f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="10"/>{_marker(plant_id, x, y, 4.5)}</g>'
             )
 
-        parts.append(_series(plant_id, "".join(series)))
+        shapes.append(_series(plant_id, "".join(plant_shapes)))
+        markers.append(_series(plant_id, "".join(plant_markers)))
 
-    return _svg(frame.height, "Frequência dominante média e desvio padrão por dia e planta", "".join(parts))
+    # Both plants share each day's x, so every marker goes above every band and line, where it can be hovered.
+    return _svg(
+        frame.height,
+        "Frequência dominante média e desvio padrão por dia e planta",
+        frame.render() + "".join(shapes) + "".join(markers),
+    )

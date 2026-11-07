@@ -290,8 +290,8 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .chart .hit { fill: transparent; }
 .chart circle.plant-1, .chart polygon.plant-1 { fill: var(--plant-1); }
 .chart circle.plant-2, .chart polygon.plant-2 { fill: var(--plant-2); }
-.chart polyline.line { fill: none; stroke-width: 2; }
-.chart polygon.band { fill-opacity: 0.15; }
+.chart polyline.line { fill: none; stroke-width: 2; pointer-events: none; }
+.chart polygon.band { fill-opacity: 0.15; pointer-events: none; }
 .chart polyline.line.plant-1 { stroke: var(--plant-1); }
 .chart polyline.line.plant-2 { stroke: var(--plant-2); }
 .chart a:hover circle:not(.hit), .chart a:hover polygon { stroke: var(--ink); stroke-width: 1.5; }
