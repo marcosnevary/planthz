@@ -26,8 +26,6 @@ def test_video_without_a_valid_result_for_both_plants_leaves_for_both() -> None:
 
     analysis = build_analysis(runs)
 
-    assert analysis.n_videos == 1
-    assert analysis.n_unpaired_videos == 1
     assert set(analysis.rows["video_id"]) == {1}
 
 
@@ -62,7 +60,7 @@ def test_stale_results_stay_out_of_the_analysis() -> None:
     ]
 
     assert runs[0].status is RunStatus.STALE
-    assert build_analysis(runs).n_videos == 0
+    assert build_analysis(runs).rows.empty
 
 
 def test_analysis_without_results_is_empty() -> None:

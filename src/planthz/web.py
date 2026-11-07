@@ -551,8 +551,6 @@ def analysis_page(request: Request, db: Db, campaign_id: int) -> Response:
         {
             "campaign": campaign,
             "tab": "analysis",
-            "analysis": result,
-            "counts": store.status_counts(runs),
             "has_data": has_data,
             "per_video_charts": charts.frequency_per_video(result.rows) if has_data else {},
             "daily_chart": charts.daily_means(result.daily_means) if has_data else "",

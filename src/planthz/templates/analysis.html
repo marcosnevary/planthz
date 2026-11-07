@@ -1,23 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Análises · {{ campaign.name }}{% endblock %}
 {% block content %}
-<section class="panel">
-  <h1>Análises</h1>
-  <p class="muted">Planta 1 e Planta 2, comparadas nos mesmos vídeos. Considera apenas vídeos com resultado válido para as duas plantas.</p>
-  {% if not has_data %}
-  <p class="alert">Ainda não há vídeos com resultado válido para as duas plantas. <a href="/campaigns/{{ campaign.id }}">Ir para o processamento</a></p>
-  {% endif %}
-</section>
-
-{% if has_data %}
-<dl class="stats">
-  <div><dt>Vídeos analisados</dt><dd>{{ analysis.n_videos }}</dd></div>
-  <div><dt>Sem par válido</dt><dd>{{ analysis.n_unpaired_videos }}</dd></div>
-  <div><dt>Execuções sem pico</dt><dd>{{ counts[RunStatus.NO_PEAK] }}</dd></div>
-  <div><dt>Com falha</dt><dd>{{ counts[RunStatus.FAILED] }}</dd></div>
-  <div><dt>Ainda a processar</dt><dd>{{ counts[RunStatus.PENDING] + counts[RunStatus.STALE] }}</dd></div>
-</dl>
-
+{% if not has_data %}
+<p class="alert page-alert">Ainda não há vídeos com resultado válido para as duas plantas. <a href="/campaigns/{{ campaign.id }}">Ir para o processamento</a></p>
+{% else %}
 <section class="panel">
   <h2>Resumo por planta</h2>
   <table>
