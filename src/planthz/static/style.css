@@ -198,9 +198,15 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .ignored { font-size: 12px; color: var(--ink-muted); }
 
 /* Tabs */
-.tabs { display: flex; gap: 16px; margin-bottom: 8px; }
-.tabs button, .tabs button:hover:not(:disabled) { padding: 0; background: none; color: var(--ink-muted); font-size: 20px; font-weight: 700; }
-.tabs button:hover:not(:disabled), .tabs [aria-selected="true"] { color: var(--ink); }
+/* A switch between views: tabs on the processing page, chart types on the analysis page. */
+.segmented { display: inline-flex; padding: 2px; border-radius: 6px; background: var(--page); }
+.segmented[role="tablist"] { margin-bottom: 12px; }
+.segmented button { padding: 4px 10px; font-size: 12px; background: transparent; color: var(--ink-muted); }
+.segmented [aria-pressed="true"], .segmented [aria-selected="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgb(29 35 32 / 0.12);
+}
 
 /* History */
 .history-list { max-height: 420px; overflow-y: auto; scrollbar-width: none; }
@@ -295,9 +301,6 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .chart-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 8px 0 4px; }
 .chart-controls .legend { margin: 0; }
 .chart-options { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.segmented { display: inline-flex; padding: 2px; border-radius: 6px; background: var(--page); }
-.segmented button { padding: 4px 10px; font-size: 12px; background: transparent; color: var(--ink-muted); }
-.segmented button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgb(29 35 32 / 0.12); }
 .moving-average { display: flex; align-items: center; gap: 8px; font-weight: 500; }
 .moving-average:has(select:disabled) { color: var(--ink-muted); }
 .moving-average select { width: auto; margin: 0; padding-top: 4px; padding-bottom: 4px; font-size: 12px; }
