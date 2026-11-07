@@ -12,9 +12,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from planthz import analysis as analysis_module
-from planthz import charts, frames, jobs, store, transfer
+from planthz import charts, frames, jobs, source_maps, store, transfer
 from planthz.db import connect
-from planthz.methodology import FREQUENCY_THRESHOLD
+from planthz.methodology import FREQUENCY_THRESHOLD, N_PC, SourceMaps
 from planthz.rois import PLANT_IDS, Roi, validate_plants
 from planthz.scan import scan_videos
 from planthz.store import RunStatus
@@ -496,7 +496,7 @@ def video_page(request: Request, db: Db, video_id: int) -> Response:
     campaign = require_synced_campaign(db, require_video(db, video_id).campaign_id)
     video = require_video(db, video_id)
     previous_id, next_id = store.neighbor_videos(db, video)
-    runs = [run for run in store.list_runs(db, video.campaign_id, video.day) if run.video.id == video_id]
+    runs = _video_runs(db, video)
 
     return templates.TemplateResponse(
         request,
@@ -532,6 +532,54 @@ def video_frame(
 
     # The ROIs drawn on the frame can change, so the browser must not keep its own copy.
     return Response(jpeg, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
+def _video_runs(db: sqlite3.Connection, video: store.Video) -> list[store.Run]:
+    return [run for run in store.list_runs(db, video.campaign_id, video.day) if run.video.id == video.id]
+
+
+def require_source_maps(db: sqlite3.Connection, video_id: int, plant_id: int) -> SourceMaps:
+    video = require_video(db, video_id)
+    result = next((run.result for run in _video_runs(db, video) if run.plant_id == plant_id), None)
+
+    if result is None or result.error is not None:
+        raise HTTPException(404, "Esta planta não tem resultado neste vídeo.")
+
+    # The result's ROI, not the campaign's, so the map explains the frequency shown on the page.
+    try:
+        return source_maps.source_maps(video.path, result.roi)
+    except source_maps.SourceMapsUnavailable as unavailable:
+        raise HTTPException(404, "O mapa das fontes não está disponível.") from unavailable
+
+
+@app.get("/videos/{video_id}/plants/{plant_id}/sources.json")
+def video_sources(db: Db, video_id: int, plant_id: int) -> dict[str, Any]:
+    maps = require_source_maps(db, video_id, plant_id)
+
+    return {
+        "fps": maps.fps,
+        "dominant": maps.dominant.source,
+        "sources": [
+            {
+                "index": index,
+                "frequency": frequency,
+                "power": power,
+                "signal": source_maps.normalized_signal(maps, index),
+            }
+            for index, (frequency, power) in enumerate(maps.peaks)
+        ],
+    }
+
+
+@app.get("/videos/{video_id}/plants/{plant_id}/sources/{source}.png")
+def video_source_map(db: Db, video_id: int, plant_id: int, source: int) -> Response:
+    if not 0 <= source < N_PC:
+        raise HTTPException(404, "Fonte não encontrada.")
+
+    png = source_maps.map_png(require_source_maps(db, video_id, plant_id), source)
+
+    # The run can be recomputed with another ROI under the same URL.
+    return Response(png, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
 # --- Analysis ----------------------------------------------------------------------------------

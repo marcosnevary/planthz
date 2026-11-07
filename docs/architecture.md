@@ -106,6 +106,10 @@ A day cannot change while its campaign has an active job, because the worker pic
 
 `frames.py` caches each extracted frame at full resolution in `~/.planthz/frames`, keyed by video path and position. ROIs are drawn on each request rather than cached, so the picture always shows what the next run would crop. The positions are limited to tenths of the video to keep the cache bounded.
 
+## Source maps
+
+`source_maps.py` caches the source maps of each run in `~/.planthz/source_maps`, keyed by video path and ROI, the first time the video page asks for them. A map takes about as long as a run, so the page loads them after rendering. Like the frames, the cache lets the maps outlive the video on disk. The browser (`static/source_maps.js`) colors and animates them, so the server only sends one grayscale PNG per source and the signals.
+
 ## Decisions
 
 - **FastAPI + HTMX instead of Streamlit or React:** the job must outlive the page, which fits poorly with Streamlit's script reruns, and a local tool does not justify a second toolchain for React. All logic stays in Python and it runs with one command.
@@ -121,4 +125,6 @@ A day cannot change while its campaign has an active job, because the worker pic
 - **Charts as inline SVG:** each point links to its video, which turns an odd value into a ROI check in one click. The legend toggles and tooltips are a small script (`static/charts.js`) over that SVG instead of a chart library, which would need a bundle and move the chart calculations out of Python.
 - **Fixed vertical axis when a plant is hidden:** rescaling would make the same difference between plants look larger or smaller from one view to the next. Hiding the band is different: its axis is mostly empty space around the means, so the chart rescales to them.
 - **ROIs drawn by the user, not detected:** this keeps the methodology of the published results. A detected ROI could vary between videos and change the comparison.
+- **Source maps cached as files, not in SQLite:** they are only for inspection, can be recomputed from the video, and would make the database and the export much larger.
+- **Source animation in the browser instead of a video file:** OpenCV writes `mp4v`, which browsers do not play. H.264 would need ffmpeg and one file per video, plant and source, while the browser needs only the map and the signal.
 - **htmx is vendored in `static/`:** the application must work without internet access.

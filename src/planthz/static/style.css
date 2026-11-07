@@ -371,6 +371,17 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .page-head { margin-bottom: 16px; }
 .video-frame { display: block; width: 100%; height: auto; border-radius: 4px; background: var(--page); min-height: 120px; }
 .frame-controls + .plant-cards { margin-top: 24px; }
+.frame-stage { position: relative; }
+.source-map { position: absolute; pointer-events: none; }
+.source-origin { margin-top: 16px; padding-top: 12px; border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); font-size: 14px; }
+.source-origin h3 { margin: 0 0 8px; font-size: 14px; }
+.source-origin-state { margin: 0; opacity: 0.8; }
+.source-origin-controls:not([hidden]) { display: flex; flex-direction: column; gap: 8px; }
+.source-origin select { margin-top: 0; }
+.source-origin-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* The checked fill is the accent, which is also plant 1's card color. */
+.source-origin input[type="checkbox"]:checked { box-shadow: inset 0 0 0 1px currentColor; }
+.source-origin-actions label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 400; }
 
 /* Analysis */
 .legend { display: flex; gap: 8px; margin: 8px 0 4px; font-size: 12px; }
