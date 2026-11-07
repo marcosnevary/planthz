@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Análises · {{ campaign.name }}{% endblock %}
 {% block content %}
 {% macro legend(with_band=False) %}
@@ -37,18 +38,18 @@
   <div class="chart-controls">
     {{ legend() }}
     <div class="chart-options">
-      <div class="segmented" role="group" aria-label="Tipo de gráfico">
-        <button type="button" class="mode-toggle" data-mode="scatter" aria-pressed="true">Pontos</button>
-        <button type="button" class="mode-toggle" data-mode="line" aria-pressed="false">Linha</button>
-      </div>
-      <label class="moving-average">Média móvel
-        <select autocomplete="off" disabled>
+      <label class="moving-average" hidden>Média móvel
+        <select autocomplete="off">
           <option value="">Desligada</option>
           {% for hours in MOVING_AVERAGE_HOURS %}
           <option value="{{ hours }}">{{ hours }} h</option>
           {% endfor %}
         </select>
       </label>
+      <div class="segmented" role="group" aria-label="Tipo de gráfico">
+        <button type="button" class="mode-toggle" data-mode="scatter" aria-pressed="true" aria-label="Pontos" title="Pontos">{{ icon("scatter") }}</button>
+        <button type="button" class="mode-toggle" data-mode="line" aria-pressed="false" aria-label="Linha" title="Linha">{{ icon("line") }}</button>
+      </div>
     </div>
   </div>
   {{ per_video_chart|safe }}

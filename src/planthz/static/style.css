@@ -79,7 +79,7 @@ p { margin: 0 0 8px; }
 .sidebar nav a:hover, .campaign-actions a:hover { background: var(--surface-hover); }
 /* Needs .sidebar to outrank the display: block of .sidebar nav a. */
 .sidebar .sidebar-nav a { display: flex; align-items: center; gap: 8px; }
-.nav-icon {
+.icon {
   flex: none;
   width: 16px;
   height: 16px;
@@ -212,6 +212,7 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 /* A switch between views: chart types on the analysis page. */
 .segmented { display: inline-flex; padding: 2px; border-radius: 6px; background: var(--page); }
 .segmented button { padding: 4px 10px; font-size: 12px; background: transparent; color: var(--ink-muted); }
+.segmented .icon { display: block; }
 .segmented [aria-pressed="true"] {
   background: var(--surface);
   color: var(--ink);
@@ -312,9 +313,8 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .chart-controls .legend { margin: 0; }
 .chart-options { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .moving-average { display: flex; align-items: center; gap: 8px; font-weight: 500; }
-.moving-average:has(select:disabled) { color: var(--ink-muted); }
+.moving-average[hidden] { display: none; }
 .moving-average select { width: auto; margin: 0; padding-top: 4px; padding-bottom: 4px; font-size: 12px; }
-.moving-average select:disabled { opacity: 0.55; }
 /* Hiding the band moves the daily chart to the axis of the means alone; charts.py computes both. */
 .chart .y-axis { transition: opacity 0.4s ease; }
 .chart .y-axis.without-band, .chart[data-without-band] .y-axis:not(.without-band), .chart[data-without-band] .band { opacity: 0; }
