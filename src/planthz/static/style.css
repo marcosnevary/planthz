@@ -26,6 +26,9 @@
   --plant-1: #2a78d6;
   --plant-2: #d9622b;
   --radius: 8px;
+  --sidebar-padding: 16px;
+  --sidebar-gap: 16px;
+  --brand-height: 30px;
 }
 
 * { box-sizing: border-box; }
@@ -58,15 +61,16 @@ p { margin: 0 0 8px; }
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--sidebar-gap);
   width: 232px;
   height: 100vh;
-  padding: 16px 12px;
+  padding: var(--sidebar-padding) 12px;
   overflow-y: auto;
-  background: var(--page);
+  --control: var(--page);
+  background: var(--surface);
   border-right: 1px solid var(--line);
 }
-.brand { padding: 0 8px; font-weight: 700; font-size: 20px; color: var(--ink); text-decoration: none; }
+.brand { padding: 0 8px; font-weight: 700; font-size: 20px; line-height: var(--brand-height); color: var(--ink); text-decoration: none; }
 .sidebar nav { display: flex; flex-direction: column; gap: 2px; }
 .sidebar nav a, .campaign-actions a {
   display: block;
@@ -124,7 +128,14 @@ p { margin: 0 0 8px; }
 .campaign-actions button { width: 100%; text-align: left; padding: 5px 8px; }
 
 /* Layout */
-main { flex: 1; min-width: 0; max-width: 1240px; margin: 0 auto; padding: 16px 24px 48px; }
+/* Starts the page content level with the first sidebar navigation button. */
+main {
+  flex: 1;
+  min-width: 0;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: calc(var(--sidebar-padding) + var(--brand-height) + var(--sidebar-gap)) 24px 48px;
+}
 .alert.page-alert { margin: 0 0 16px; }
 .panel {
   --control: var(--page);
