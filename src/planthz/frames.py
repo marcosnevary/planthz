@@ -20,7 +20,7 @@ class FrameUnavailable(Exception):
     pass
 
 
-def _cache_path(video_path: Path, position: int) -> Path:
+def cache_path(video_path: Path, position: int) -> Path:
     # Keyed by path, not video id: SQLite can reuse the id of a deleted campaign's video.
     key = hashlib.sha1(str(video_path).encode()).hexdigest()[:20]
     cache_dir = data_dir() / "frames"
@@ -55,17 +55,22 @@ def _extract_frame(video_path: Path, position: int) -> bytes:
 
 def frame_jpeg(video_path: Path, position: int) -> bytes:
     """Return the frame at full resolution. The cache lets it outlive the video on disk."""
-    cache_path = _cache_path(video_path, position)
+    path = cache_path(video_path, position)
 
-    if cache_path.is_file():
-        return cache_path.read_bytes()
+    if path.is_file():
+        return path.read_bytes()
 
     jpeg = _extract_frame(video_path, position)
-    temporary_path = cache_path.with_suffix(f".{id(jpeg)}.tmp")
-    temporary_path.write_bytes(jpeg)
-    temporary_path.replace(cache_path)
+    store_frame(video_path, position, jpeg)
 
     return jpeg
+
+
+def store_frame(video_path: Path, position: int, jpeg: bytes) -> None:
+    path = cache_path(video_path, position)
+    temporary_path = path.with_suffix(f".{id(jpeg)}.tmp")
+    temporary_path.write_bytes(jpeg)
+    temporary_path.replace(path)
 
 
 def render_frame(video_path: Path, position: int, rois: dict[int, Roi] | None, width: int | None) -> bytes:

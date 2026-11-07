@@ -31,7 +31,43 @@ class Estimate:
     source: int | None
 
 
+@dataclass(frozen=True)
+class SourceMaps:
+    """Where in the ROI each separated source lives and how it varies over time.
+
+    `maps` has shape (sources, height, width) at the preprocessed scale, and `signals` has shape
+    (frames, sources). Both have an arbitrary sign and scale per source.
+    """
+
+    maps: np.ndarray
+    signals: np.ndarray
+    peaks: list[tuple[float, float]]
+    fps: float
+
+    @property
+    def dominant(self) -> Estimate:
+        return dominant_source(self.peaks)
+
+
 def estimate_dominant_frequency(video_path: Path, roi: Roi) -> Estimate:
+    return compute_source_maps(video_path, roi).dominant
+
+
+def compute_source_maps(video_path: Path, roi: Roi) -> SourceMaps:
+    """Weight of each source on each pixel, as marajo's compute_source_spatial_maps."""
+    frames, fps = read_preprocessed(video_path, roi)
+    components, scores = principal_components(_flatten(frames))
+    mixtures = components[:, :N_PC]
+    sources = separate_sources(mixtures)
+
+    mixing, _, _, _ = np.linalg.lstsq(sources, mixtures, rcond=None)
+    maps = (scores[:, :N_PC] @ mixing.T).T.reshape(N_PC, *frames.shape[1:])
+
+    return SourceMaps(maps=maps, signals=sources, peaks=source_peaks(sources, fps), fps=fps)
+
+
+def read_preprocessed(video_path: Path, roi: Roi) -> tuple[np.ndarray, float]:
+    """Return the preprocessed frames, with shape (frames, height, width), and their fps."""
     with tempfile.TemporaryDirectory(prefix="planthz-") as temp_dir:
         preprocessed_path = Path(temp_dir) / "preprocessed.mp4"
         preprocess(video_path, preprocessed_path, roi)
@@ -39,15 +75,17 @@ def estimate_dominant_frequency(video_path: Path, roi: Roi) -> Estimate:
         # The re-encoded container reports a rounded fps (59.94, not 59.94006), and the frequency
         # axis has always been built from it.
         fps = read_fps(preprocessed_path)
-        dataset = load_grayscale_dataset(preprocessed_path)
+        frames = load_grayscale_frames(preprocessed_path)
 
-    return dominant_source(source_peaks(dataset, fps))
+    return frames, fps
 
 
-def source_peaks(dataset: np.ndarray, fps: float) -> list[tuple[float, float]]:
+def _flatten(frames: np.ndarray) -> np.ndarray:
+    return frames.reshape(len(frames), -1)
+
+
+def source_peaks(sources: np.ndarray, fps: float) -> list[tuple[float, float]]:
     """Return the (frequency, power) of the highest peak of each separated source."""
-    sources = separate_sources(principal_components(dataset)[:, :N_PC])
-
     return [highest_peak(sources[:, i], fps) for i in range(N_PC)]
 
 
@@ -111,8 +149,8 @@ def read_fps(video_path: Path) -> float:
         video.release()
 
 
-def load_grayscale_dataset(video_path: Path) -> np.ndarray:
-    """Return a (frames, pixels) matrix with one flattened frame per row."""
+def load_grayscale_frames(video_path: Path) -> np.ndarray:
+    """Return the frames with shape (frames, height, width), read back at the size the encoder wrote."""
     video = cv.VideoCapture(str(video_path))
 
     if not video.isOpened():
@@ -127,7 +165,7 @@ def load_grayscale_dataset(video_path: Path) -> np.ndarray:
             if not ok:
                 break
 
-            frames.append(frame[:, :, 0].reshape(-1))
+            frames.append(frame[:, :, 0])
 
     finally:
         video.release()
@@ -138,13 +176,14 @@ def load_grayscale_dataset(video_path: Path) -> np.ndarray:
     return np.asarray(frames, dtype=np.float32)
 
 
-def principal_components(dataset: np.ndarray) -> np.ndarray:
-    """Return the PCA components over time, with shape (frames, components)."""
+def principal_components(dataset: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Return the PCA components over time, with shape (frames, components), and the scores of each
+    pixel on them, with shape (pixels, components)."""
     centered = dataset - dataset.mean(axis=0, keepdims=True)
     pca = PCA()
-    pca.fit(centered.T)
+    scores = pca.fit_transform(centered.T)
 
-    return pca.components_.T
+    return pca.components_.T, scores
 
 
 def separate_sources(mixtures: np.ndarray) -> np.ndarray:

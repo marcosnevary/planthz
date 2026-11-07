@@ -16,8 +16,14 @@
 <p class="alert page-alert">Nenhum ROI definido ainda.{% if campaign.id in campaigns_with_videos_on_disk %} <a href="/campaigns/{{ campaign.id }}/rois?video={{ video.id }}">Definir ROIs</a>{% endif %}</p>
 {% endif %}
 
-<img class="video-frame" id="video-frame" src="/videos/{{ video.id }}/frame.jpg" alt="Quadro do vídeo com os ROIs desenhados"
-     onerror="this.alt='O quadro não está disponível: o arquivo não está no disco.'">
+<div class="frame-stage">
+  <img class="video-frame" id="video-frame" src="/videos/{{ video.id }}/frame.jpg" alt="Quadro do vídeo com os ROIs desenhados"
+       onerror="this.alt='O quadro não está disponível: o arquivo não está no disco.'">
+  {% for run in runs if run.result and not run.result.error %}
+  <canvas class="source-map" id="source-map-{{ run.plant_id }}" hidden
+          data-x="{{ run.result.roi.x }}" data-y="{{ run.result.roi.y }}" data-w="{{ run.result.roi.w }}" data-h="{{ run.result.roi.h }}"></canvas>
+  {% endfor %}
+</div>
 <div class="frame-controls">
   <label class="grow">
     <input id="video-position" type="range" aria-label="Ponto do vídeo" min="0" max="{{ max_position }}" step="1" value="0" data-video="{{ video.id }}">
@@ -42,8 +48,22 @@
         {% if run.result and run.result.error %}<div class="small">{{ run.result.error }}</div>{% endif %}
       </dd>
     </dl>
+    {% if measured %}
+    <div class="source-origin" data-video="{{ video.id }}" data-plant="{{ run.plant_id }}">
+      <h3>Origem da frequência</h3>
+      <p class="small source-origin-state">Calculando o mapa das fontes…</p>
+      <div class="source-origin-controls" hidden>
+        <select aria-label="Fonte da Planta {{ run.plant_id }}"></select>
+        <div class="source-origin-actions">
+          <label><input type="checkbox" checked> Mostrar no quadro</label>
+          <button type="button">Animar</button>
+        </div>
+      </div>
+    </div>
+    {% endif %}
   </section>
   {% endfor %}
 </div>
 <script src="/static/video.js" defer></script>
+<script src="/static/source_maps.js" defer></script>
 {% endblock %}

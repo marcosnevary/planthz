@@ -29,6 +29,18 @@ With the ROIs in `rois/acai_estresse_hidrico.json`, frequency, source and amplit
 
 The only behavior added to the numeric path: a ROI that does not fit in the frame fails the run, where the original would clip the crop and stretch it back to the expected size.
 
+## Source maps
+
+The video page shows where in the ROI each source comes from, as marajo's `notebooks/main_overlay.ipynb` does with `compute_source_spatial_maps` and the overlay videos in `scripts/services.py`. Only for inspection: the maps are not part of the results, though the export carries them.
+
+- **Map:** the least-squares mixing `A` that rebuilds the PCA components from the sources (`components ≈ sources @ A`), applied to the PCA scores of each pixel: `scores[:, :N_PC] @ A.T`. One weight per pixel of the preprocessed ROI (20% scale, as read back from the encoder, which rounds odd sizes down to even ones).
+- **Display:** sign and scale of a source are arbitrary, so the map shows `|weight|` normalized to its maximum, colored with the JET colormap. Pixels below 0.15 are transparent, and the opacity rises from there to 1.
+- **Animation:** the color and opacity of each pixel are multiplied by `|signal|` normalized to its maximum, frame by frame at the video's fps, as `create_dynamic_source_overlay_video` does. It covers the 630 analysed frames, over the still frame shown on the page.
+- **When:** during processing, in the same pass as the estimate, since the video may leave the disk afterwards. See `docs/architecture.md`.
+- **ROI:** the map is computed with the ROI stored in the result, so it explains the frequency on the page even when the campaign's ROI has since changed.
+
+The sources and their peaks come from the same steps as the estimate, so the dominant source of the maps is the one stored in the result.
+
 ## What the original notebook does and planthz does not
 
 Removed on purpose until the analyses are defined. Only the distinction between plant 1 and plant 2 remains:

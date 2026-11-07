@@ -4,7 +4,14 @@ import numpy as np
 import pytest
 from conftest import HEIGHT, WIDTH
 
-from planthz.methodology import dominant_source, estimate_dominant_frequency, highest_peak
+from planthz.methodology import (
+    N_PC,
+    SCALE_OUT,
+    compute_source_maps,
+    dominant_source,
+    estimate_dominant_frequency,
+    highest_peak,
+)
 from planthz.rois import Roi
 
 PLANT_ROIS = {1: Roi(0, 0, WIDTH // 2, HEIGHT), 2: Roi(WIDTH // 2, 0, WIDTH // 2, HEIGHT)}
@@ -24,6 +31,22 @@ def test_matches_the_original_code(videos_dir: Path, plant_id: int, roi: Roi) ->
     estimate = estimate_dominant_frequency(first_video(videos_dir), roi)
 
     assert (estimate.frequency, estimate.source) == pytest.approx(ORIGINAL_CODE_RESULTS[plant_id])
+
+
+@pytest.mark.parametrize(("plant_id", "roi"), PLANT_ROIS.items())
+def test_source_maps_pick_the_same_dominant_source(videos_dir: Path, plant_id: int, roi: Roi) -> None:
+    maps = compute_source_maps(first_video(videos_dir), roi)
+
+    assert maps.dominant == estimate_dominant_frequency(first_video(videos_dir), roi)
+    assert maps.maps.shape == (N_PC, int(roi.h * SCALE_OUT), int(roi.w * SCALE_OUT))
+    assert maps.signals.shape[1] == N_PC
+
+
+def test_source_maps_take_the_size_the_encoder_wrote(videos_dir: Path) -> None:
+    # A 0.2 scale gives 17x23, and the encoder rounds it down to even sizes.
+    maps = compute_source_maps(first_video(videos_dir), Roi(0, 0, 87, 117))
+
+    assert maps.maps.shape == (N_PC, 22, 16)
 
 
 def test_roi_with_odd_size_still_works(videos_dir: Path) -> None:

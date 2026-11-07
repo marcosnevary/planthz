@@ -129,9 +129,9 @@ def test_campaign_menu_shows_the_folder_and_holds_the_downloads(client: TestClie
     before_menu, menu = sidebar.split('<details class="campaign-menu">')
 
     assert str(videos_dir) in menu
-    assert f"{url}/export.json" in menu
+    assert f"{url}/export.zip" in menu
     assert f"{url}/results.csv" in menu
-    assert f"{url}/export.json" not in before_menu
+    assert f"{url}/export.zip" not in before_menu
     assert f"{url}/results.csv" not in before_menu
 
 
@@ -249,6 +249,56 @@ def test_full_flow_from_rois_to_analysis(client: TestClient, videos_dir: Path) -
     export = client.get(f"{url}/results.csv")
     assert export.headers["content-type"].startswith("text/csv")
     assert len(export.text.splitlines()) == 7
+
+
+def test_source_maps_explain_the_stored_result(client: TestClient, own_videos: Path) -> None:
+    url = create_campaign(client, own_videos)
+    client.post(f"{url}/rois", data=ROI_FORM)
+    run_batch(url)
+    video_id = first_video_id(client, url)
+
+    assert 'class="source-origin"' in client.get(f"/videos/{video_id}").text
+
+    sources = client.get(f"/videos/{video_id}/plants/1/sources.json").json()
+    assert len(sources["sources"]) == 10
+    result = store.list_runs(connect(), int(url.rsplit("/", 1)[1]))[0].result
+    assert result is not None
+    assert sources["dominant"] == result.source
+    assert max(sources["sources"][0]["signal"]) == 1
+
+    png = client.get(f"/videos/{video_id}/plants/1/sources/{sources['dominant']}.png")
+    assert png.status_code == 200
+    assert png.headers["content-type"] == "image/png"
+    assert client.get(f"/videos/{video_id}/plants/1/sources/10.png").status_code == 404
+
+
+def test_processing_keeps_the_source_maps_and_frame_for_when_the_video_leaves_the_disk(
+    client: TestClient, own_videos: Path, data_dir: Path
+) -> None:
+    url = create_campaign(client, own_videos)
+    client.post(f"{url}/rois", data=ROI_FORM)
+    run_batch(url)
+    video_id = first_video_id(client, url)
+
+    for video in own_videos.rglob("*.mp4"):
+        video.unlink()
+
+    assert client.get(f"/videos/{video_id}/frame.jpg").status_code == 200
+
+    for plant_id in (1, 2):
+        assert len(client.get(f"/videos/{video_id}/plants/{plant_id}/sources.json").json()["sources"]) == 10
+
+    shutil.rmtree(data_dir / "source_maps")
+    assert client.get(f"/videos/{video_id}/plants/1/sources.json").status_code == 404
+
+
+def test_source_maps_need_a_result(client: TestClient, videos_dir: Path) -> None:
+    url = create_campaign(client, videos_dir)
+    client.post(f"{url}/rois", data=ROI_FORM)
+    video_id = first_video_id(client, url)
+
+    assert 'class="source-origin"' not in client.get(f"/videos/{video_id}").text
+    assert client.get(f"/videos/{video_id}/plants/1/sources.json").status_code == 404
 
 
 def test_changing_a_roi_is_reported_on_the_processing_page(client: TestClient, videos_dir: Path) -> None:
