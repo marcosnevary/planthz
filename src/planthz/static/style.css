@@ -77,7 +77,8 @@ p { margin: 0 0 8px; }
   text-decoration: none;
 }
 .sidebar nav a:hover, .campaign-actions a:hover { background: var(--surface-hover); }
-.sidebar-nav a { display: flex; align-items: center; gap: 8px; }
+/* Needs .sidebar to outrank the display: block of .sidebar nav a. */
+.sidebar .sidebar-nav a { display: flex; align-items: center; gap: 8px; }
 .nav-icon {
   flex: none;
   width: 16px;
