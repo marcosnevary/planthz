@@ -286,7 +286,16 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 }
 .chart-tip::first-line { font-weight: 600; }
 .chart { display: block; width: 100%; height: auto; margin-bottom: 12px; font-size: 12px; }
-.chart .series[hidden], .chart .band[hidden] { display: none; }
+.chart .series[hidden] { display: none; }
+/* Hiding the band moves the daily chart to the axis of the means alone; charts.py computes both. */
+.chart .y-axis, .chart .band, .chart .rescaled, .chart .point { transition: opacity 0.4s ease, transform 0.4s ease; }
+.chart .y-axis.without-band, .chart[data-without-band] .y-axis:not(.without-band), .chart[data-without-band] .band { opacity: 0; }
+.chart[data-without-band] .y-axis.without-band { opacity: 1; }
+.chart[data-without-band] .rescaled { transform: var(--rescale); }
+.chart[data-without-band] .point { transform: translateY(var(--shift)); }
+@media (prefers-reduced-motion: reduce) {
+  .chart .y-axis, .chart .band, .chart .rescaled, .chart .point { transition: none; }
+}
 .chart .grid { stroke: var(--line); stroke-width: 1; }
 .chart .day-line { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
 .chart .tick { fill: var(--ink-muted); }
@@ -294,7 +303,7 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .chart .hit { fill: transparent; }
 .chart circle.plant-1, .chart polygon.plant-1 { fill: var(--plant-1); }
 .chart circle.plant-2, .chart polygon.plant-2 { fill: var(--plant-2); }
-.chart polyline.line { fill: none; stroke-width: 2; pointer-events: none; }
+.chart polyline.line { fill: none; stroke-width: 2; pointer-events: none; vector-effect: non-scaling-stroke; }
 .chart polygon.band { fill-opacity: 0.15; pointer-events: none; }
 .chart polyline.line.plant-1 { stroke: var(--plant-1); }
 .chart polyline.line.plant-2 { stroke: var(--plant-2); }

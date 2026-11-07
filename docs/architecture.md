@@ -45,7 +45,7 @@ A video enters the analysis only if **both** of its runs are `done`, so the plan
 
 Hiding a plant from a chart's legend on the analysis page only hides its marks: the axes keep the range of both plants.
 
-The daily chart shades one standard deviation around each plant's daily mean, and its vertical axis covers that band even when the legend hides it. A day with one video has no standard deviation and adds no height to the band. A day without videos breaks both the line and the band.
+The daily chart shades one standard deviation around each plant's daily mean, and its vertical axis covers that band. Hiding the band in the legend moves the chart, with a transition, to an axis that covers only the means: `charts.py` renders both axes, and the browser only switches between them. A day with one video has no standard deviation and adds no height to the band. A day without videos breaks both the line and the band.
 
 ## Disabled days
 
@@ -117,6 +117,6 @@ A day cannot change while its campaign has an active job, because the worker pic
 - **A folder conflict refuses the import instead of merging or renaming:** merging would have to choose between two sets of results for the same run, and a silently renamed folder would break the rule that a folder has one campaign. The user decides by deleting the existing campaign.
 - **Plain SQLite without an ORM:** a handful of tables with one writer at a time.
 - **Charts as inline SVG:** each point links to its video, which turns an odd value into a ROI check in one click. The legend toggles and tooltips are a small script (`static/charts.js`) over that SVG instead of a chart library, which would need a bundle and move the chart calculations out of Python.
-- **Fixed vertical axis on the analysis charts:** rescaling when a plant is hidden would make the same difference look larger or smaller from one view to the next.
+- **Fixed vertical axis when a plant is hidden:** rescaling would make the same difference between plants look larger or smaller from one view to the next. Hiding the band is different: its axis is mostly empty space around the means, so the chart rescales to them.
 - **ROIs drawn by the user, not detected:** this keeps the methodology of the published results. A detected ROI could vary between videos and change the comparison.
 - **htmx is vendored in `static/`:** the application must work without internet access.

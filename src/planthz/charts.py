@@ -51,8 +51,7 @@ class _Frame:
 
         return MARGIN["top"] + (high - value) / (high - low) * plot_height
 
-    def render(self) -> str:
-        bottom = self.height - MARGIN["bottom"]
+    def render_y_axis(self, css_class: str = "y-axis") -> str:
         parts = []
 
         for tick in self.y_ticks:
@@ -63,6 +62,18 @@ class _Frame:
             parts.append(
                 f'<text class="tick" x="{MARGIN["left"] - 8}" y="{y + 4:.1f}" text-anchor="end">{_hz(tick, 1)}</text>'
             )
+
+        return f'<g class="{css_class}">{"".join(parts)}</g>'
+
+    def rescaled_to(self, other: "_Frame") -> tuple[float, float]:
+        """Return `scale` and `offset` such that `other.y(v) == scale * self.y(v) + offset` for every value."""
+        scale = (self.y_ticks[-1] - self.y_ticks[0]) / (other.y_ticks[-1] - other.y_ticks[0])
+
+        return scale, other.y(0) - scale * self.y(0)
+
+    def render(self) -> str:
+        bottom = self.height - MARGIN["bottom"]
+        parts = [self.render_y_axis()]
 
         # Labels are thinned so a long campaign does not collide, while day lines stay.
         label_every = max(1, math.ceil(self.days / 16))
@@ -104,8 +115,13 @@ def _marker(plant_id: int, x: float, y: float, size: float = 3.5) -> str:
     )
 
 
-def _svg(height: int, label: str, content: str) -> str:
-    return f'<svg class="chart" viewBox="0 0 {WIDTH} {height}" role="img" aria-label="{escape(label)}">{content}</svg>'
+def _svg(height: int, label: str, content: str, style: str = "") -> str:
+    style_attribute = f' style="{style}"' if style else ""
+
+    return (
+        f'<svg class="chart" viewBox="0 0 {WIDTH} {height}" role="img" aria-label="{escape(label)}"{style_attribute}>'
+        f"{content}</svg>"
+    )
 
 
 def _shared_axis(days: pd.Series, values: pd.Series, height: int, y_label: str) -> _Frame:
@@ -154,12 +170,11 @@ def frequency_per_video(rows: pd.DataFrame) -> str:
 def daily_means(table: pd.DataFrame) -> str:
     # A day with a single video has no standard deviation, so its band has no height.
     spread = table["std"].fillna(0)
-    frame = _shared_axis(
-        table["day"],
-        pd.concat([table["mean"] - spread, table["mean"] + spread]),
-        300,
-        "Frequência dominante média (Hz)",
-    )
+    y_label = "Frequência dominante média (Hz)"
+    frame = _shared_axis(table["day"], pd.concat([table["mean"] - spread, table["mean"] + spread]), 300, y_label)
+    # The axis of the means alone, which the chart moves to when the legend hides the band.
+    without_band = _shared_axis(table["day"], table["mean"], 300, y_label)
+    scale, offset = frame.rescaled_to(without_band)
     shapes: list[str] = []
     markers: list[str] = []
 
@@ -204,8 +219,10 @@ def daily_means(table: pd.DataFrame) -> str:
                     f"Vídeos: {size}",
                 ]
             )
+            # Markers move with a translation rather than the scale, which would flatten them.
+            shift = without_band.y(value) - y
             plant_markers.append(
-                f'<g data-tip="{escape(tip)}" aria-label="{escape(tip)}">'
+                f'<g class="point" style="--shift: {shift:.1f}px" data-tip="{escape(tip)}" aria-label="{escape(tip)}">'
                 f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="10"/>{_marker(plant_id, x, y, 4.5)}</g>'
             )
 
@@ -216,5 +233,9 @@ def daily_means(table: pd.DataFrame) -> str:
     return _svg(
         frame.height,
         "Frequência dominante média e desvio padrão por dia e planta",
-        frame.render() + "".join(shapes) + "".join(markers),
+        frame.render()
+        + without_band.render_y_axis("y-axis without-band")
+        + f'<g class="rescaled">{"".join(shapes)}</g>'
+        + "".join(markers),
+        f"--rescale: matrix(1, 0, 0, {scale:.6f}, 0, {offset:.3f})",
     )

@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -118,3 +119,28 @@ def test_daily_chart_shades_the_standard_deviation_within_the_axis() -> None:
     assert ">1,0</text>" in chart
     assert "Média: 2,000 Hz\nDesvio padrão: 1,000 Hz\nVídeos: 5" in chart
     assert "Desvio padrão: —" in chart
+
+
+def test_daily_chart_moves_lines_and_markers_to_the_same_place_without_the_band() -> None:
+    table = pd.DataFrame(
+        {
+            "day": ["2026-10-29", "2026-10-30"],
+            "plant_id": [1, 1],
+            "mean": [2.0, 3.0],
+            "std": [1.5, 0.5],
+            "size": [5, 5],
+        }
+    )
+
+    chart = charts.daily_means(table)
+    rescale = re.search(r"matrix\(1, 0, 0, ([\d.-]+), 0, ([\d.-]+)\)", chart)
+    line = re.search(r'<polyline[^>]*points="([^"]*)"', chart)
+    assert rescale and line
+    scale, offset = float(rescale[1]), float(rescale[2])
+    line_ys = [float(point.split(",")[1]) for point in line[1].split()]
+    shifts = [float(shift) for shift in re.findall(r"--shift: ([\d.-]+)px", chart)]
+    marker_ys = [float(y) for y in re.findall(r'<circle class="plant-1" cx="[\d.]+" cy="([\d.]+)"', chart)]
+
+    assert scale != 1
+    for line_y, marker_y, shift in zip(line_ys, marker_ys, shifts, strict=True):
+        assert scale * line_y + offset == pytest.approx(marker_y + shift, abs=0.2)

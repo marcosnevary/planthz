@@ -1,4 +1,4 @@
-// Legend toggles for each plant and the standard deviation band, and tooltips on the analysis charts, whose SVG is rendered by charts.py.
+// Legend toggles and tooltips on the analysis charts, whose SVG is rendered by charts.py.
 (() => {
   const tip = document.createElement("div");
   tip.className = "chart-tip";
@@ -11,12 +11,17 @@
     if (!button) return;
 
     const visible = button.getAttribute("aria-pressed") !== "true";
-    const selector = "band" in button.dataset ? ".band" : `.series[data-plant="${button.dataset.plant}"]`;
+    const panel = button.closest(".chart-panel");
     button.setAttribute("aria-pressed", String(visible));
-    button
-      .closest(".chart-panel")
-      .querySelectorAll(selector)
-      .forEach((element) => element.toggleAttribute("hidden", !visible));
+
+    if ("band" in button.dataset) {
+      panel.querySelector(".chart").toggleAttribute("data-without-band", !visible);
+      return;
+    }
+
+    panel
+      .querySelectorAll(`.series[data-plant="${button.dataset.plant}"]`)
+      .forEach((series) => series.toggleAttribute("hidden", !visible));
   });
 
   const showTip = (target, x, y) => {
