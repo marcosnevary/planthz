@@ -215,6 +215,7 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .swatch { display: inline-block; width: 10px; height: 10px; vertical-align: 0; }
 .swatch.plant-1 { background: var(--plant-1); border-radius: 50%; }
 .swatch.plant-2 { background: var(--plant-2); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.swatch.band { background: var(--ink-muted); opacity: 0.3; border-radius: 2px; }
 
 /* ROI editor */
 .roi-editor { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; margin-top: 12px; }
@@ -263,16 +264,60 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .frame-slider { margin-top: 12px; }
 
 /* Analysis */
-.legend { display: flex; gap: 16px; margin: 8px 0 4px; font-size: 12px; }
-.axis-caption { margin: 4px 0 12px; font-size: 12px; color: var(--ink-muted); }
-.chart { display: block; width: 100%; height: auto; font-size: 12px; }
-.chart .grid { stroke: var(--line); stroke-width: 1; }
-.chart .day-line { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+.legend { display: flex; gap: 8px; margin: 8px 0 4px; font-size: 12px; }
+.legend-toggle { padding: 4px 10px; font-size: 12px; background: transparent; }
+.legend-toggle[aria-pressed="false"] { color: var(--ink-muted); }
+.legend-toggle[aria-pressed="false"] .swatch { opacity: 0.3; }
+.legend-toggle[aria-pressed="false"] .swatch.band { opacity: 0.1; }
+.chart-tip {
+  position: fixed;
+  z-index: 10;
+  max-width: 320px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 4px 16px rgb(29 35 32 / 0.12);
+  font-size: 12px;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  white-space: pre-line;
+  pointer-events: none;
+}
+.chart-tip::first-line { font-weight: 600; }
+.chart { display: block; width: 100%; height: auto; margin-bottom: 12px; font-size: 12px; }
+.chart .grid { stroke: var(--line); stroke-width: 1; opacity: 0.6; }
+.chart .series[hidden], .chart .average[hidden] { display: none; }
+/* The per-video chart starts as a scatter plot; charts.js sets data-mode and data-average from its controls. */
+.chart:not([data-mode="line"]) .line.raw, .chart:not([data-mode="line"]) .average { display: none; }
+.chart[data-mode="line"] a > :not(.hit) { visibility: hidden; }
+.chart[data-average] .line.raw { opacity: 0.25; }
+.chart-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 8px 0 4px; }
+.chart-controls .legend { margin: 0; }
+.chart-options { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.segmented { display: inline-flex; padding: 2px; border-radius: 6px; background: var(--page); }
+.segmented button { padding: 4px 10px; font-size: 12px; background: transparent; color: var(--ink-muted); }
+.segmented button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgb(29 35 32 / 0.12); }
+.moving-average { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.moving-average:has(select:disabled) { color: var(--ink-muted); }
+.moving-average select { width: auto; margin: 0; padding-top: 4px; padding-bottom: 4px; font-size: 12px; }
+.moving-average select:disabled { opacity: 0.55; }
+/* Hiding the band moves the daily chart to the axis of the means alone; charts.py computes both. */
+.chart .y-axis { transition: opacity 0.4s ease; }
+.chart .y-axis.without-band, .chart[data-without-band] .y-axis:not(.without-band), .chart[data-without-band] .band { opacity: 0; }
+.chart[data-without-band] .y-axis.without-band { opacity: 1; }
+.chart[data-without-band] .rescaled { transform: var(--rescale); }
+.chart[data-without-band] .point { transform: translateY(var(--shift)); }
+@media (prefers-reduced-motion: reduce) {
+  .chart .y-axis { transition: none; }
+}
 .chart .tick { fill: var(--ink-muted); }
+.chart .axis-label { fill: var(--ink-muted); font-weight: 500; }
 .chart .hit { fill: transparent; }
 .chart circle.plant-1, .chart polygon.plant-1 { fill: var(--plant-1); }
 .chart circle.plant-2, .chart polygon.plant-2 { fill: var(--plant-2); }
-.chart polyline.line { fill: none; stroke-width: 2; }
+.chart polyline.line { fill: none; stroke-width: 2; pointer-events: none; vector-effect: non-scaling-stroke; }
+.chart polygon.band { fill-opacity: 0.15; pointer-events: none; }
 .chart polyline.line.plant-1 { stroke: var(--plant-1); }
 .chart polyline.line.plant-2 { stroke: var(--plant-2); }
 .chart a:hover circle:not(.hit), .chart a:hover polygon { stroke: var(--ink); stroke-width: 1.5; }

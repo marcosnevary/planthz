@@ -8,6 +8,9 @@ import pandas as pd
 
 from planthz.store import Run, RunStatus
 
+# Windows offered for the moving average on the per-video chart. Videos are usually 30 minutes apart.
+MOVING_AVERAGE_HOURS = (1, 3, 6, 24)
+
 
 @dataclass(frozen=True)
 class Analysis:
@@ -53,6 +56,18 @@ def build_analysis(runs: list[Run]) -> Analysis:
             rows.groupby(["day", "plant_id"])["frequency"].agg(["mean", "std", "size"]).reset_index().sort_values("day")
         ),
     )
+
+
+def moving_average(rows: pd.DataFrame, hours: int) -> pd.Series:
+    """Return the mean frequency over a window of `hours` centred on each video, for the rows of one plant.
+
+    The window is in time rather than in videos, so a missing video narrows the sample instead of widening the period.
+    """
+    ordered = rows.sort_values("captured_at")
+    frequencies = pd.Series(ordered["frequency"].to_numpy(), index=pd.to_datetime(ordered["captured_at"]))
+    means = frequencies.rolling(pd.Timedelta(hours=hours), center=True).mean()
+
+    return pd.Series(means.to_numpy(), index=ordered.index)
 
 
 def results_csv(runs: list[Run]) -> str:

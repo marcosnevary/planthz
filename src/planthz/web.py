@@ -99,6 +99,7 @@ templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 templates.env.globals["JOB_LABELS"] = JOB_LABELS
 templates.env.globals["RunStatus"] = RunStatus
 templates.env.globals["PLANT_IDS"] = PLANT_IDS
+templates.env.globals["MOVING_AVERAGE_HOURS"] = analysis_module.MOVING_AVERAGE_HOURS
 
 
 def get_db() -> Iterator[sqlite3.Connection]:
@@ -540,10 +541,6 @@ def analysis_page(request: Request, db: Db, campaign_id: int) -> Response:
     runs = store.list_runs(db, campaign_id)
     result = analysis_module.build_analysis(runs)
     has_data = not result.rows.empty
-    daily_by_day: dict[str, dict[int, Any]] = defaultdict(dict)
-
-    for row in result.daily_means.to_dict("records"):
-        daily_by_day[str(row["day"])][int(row["plant_id"])] = row
 
     return templates.TemplateResponse(
         request,
@@ -552,10 +549,9 @@ def analysis_page(request: Request, db: Db, campaign_id: int) -> Response:
             "campaign": campaign,
             "tab": "analysis",
             "has_data": has_data,
-            "per_video_charts": charts.frequency_per_video(result.rows) if has_data else {},
+            "per_video_chart": charts.frequency_per_video(result.rows) if has_data else "",
             "daily_chart": charts.daily_means(result.daily_means) if has_data else "",
             "summary": list(result.plant_summary.itertuples()),
-            "daily_rows": sorted(daily_by_day.items()),
         },
     )
 

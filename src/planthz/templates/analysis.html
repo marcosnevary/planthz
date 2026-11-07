@@ -1,6 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Análises · {{ campaign.name }}{% endblock %}
 {% block content %}
+{% macro legend(with_band=False) %}
+<div class="legend">
+  {% for plant_id in PLANT_IDS %}
+  <button type="button" class="legend-toggle" data-plant="{{ plant_id }}" aria-pressed="true"><span class="swatch plant-{{ plant_id }}"></span> Planta {{ plant_id }}</button>
+  {% endfor %}
+  {% if with_band %}
+  <button type="button" class="legend-toggle" data-band aria-pressed="true"><span class="swatch band"></span> Desvio padrão</button>
+  {% endif %}
+</div>
+{% endmacro %}
 {% if not has_data %}
 <p class="alert page-alert">Ainda não há vídeos com resultado válido para as duas plantas. <a href="/campaigns/{{ campaign.id }}">Ir para o processamento</a></p>
 {% else %}
@@ -22,45 +32,33 @@
   </table>
 </section>
 
-<section class="panel">
+<section class="panel chart-panel">
   <h2>Frequência dominante por vídeo</h2>
-  <p class="muted small">Eixos iguais nos dois painéis. Passe o mouse sobre um ponto para ver o valor e clique para abrir o vídeo e conferir o ROI.</p>
-  {% for plant_id in PLANT_IDS %}
-  <h3><span class="swatch plant-{{ plant_id }}"></span> Planta {{ plant_id }}</h3>
-  {{ per_video_charts[plant_id]|safe }}
-  {% endfor %}
-  <p class="axis-caption">Eixo vertical: frequência dominante (Hz). Eixo horizontal: dia da captura.</p>
+  <div class="chart-controls">
+    {{ legend() }}
+    <div class="chart-options">
+      <div class="segmented" role="group" aria-label="Tipo de gráfico">
+        <button type="button" class="mode-toggle" data-mode="scatter" aria-pressed="true">Pontos</button>
+        <button type="button" class="mode-toggle" data-mode="line" aria-pressed="false">Linha</button>
+      </div>
+      <label class="moving-average">Média móvel
+        <select autocomplete="off" disabled>
+          <option value="">Desligada</option>
+          {% for hours in MOVING_AVERAGE_HOURS %}
+          <option value="{{ hours }}">{{ hours }} h</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+  </div>
+  {{ per_video_chart|safe }}
 </section>
 
-<section class="panel">
+<section class="panel chart-panel">
   <h2>Média diária</h2>
-  <div class="legend">
-    <span><span class="swatch plant-1"></span> Planta 1</span>
-    <span><span class="swatch plant-2"></span> Planta 2</span>
-  </div>
+  {{ legend(with_band=True) }}
   {{ daily_chart|safe }}
-  <p class="axis-caption">Eixo vertical: frequência dominante média (Hz). Dias sem vídeos interrompem a linha.</p>
-  <table>
-    <thead>
-      <tr>
-        <th>Dia</th>
-        <th class="num">Planta 1: média (Hz)</th><th class="num">Desvio (Hz)</th><th class="num">Vídeos</th>
-        <th class="num">Planta 2: média (Hz)</th><th class="num">Desvio (Hz)</th><th class="num">Vídeos</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for day, plants in daily_rows %}
-      <tr>
-        <td>{{ day|day }}</td>
-        {% for plant_id in PLANT_IDS %}
-        <td class="num">{{ plants[plant_id].mean|decimal }}</td>
-        <td class="num">{{ plants[plant_id].std|decimal }}</td>
-        <td class="num">{{ plants[plant_id].size }}</td>
-        {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
 </section>
+<script src="/static/charts.js" defer></script>
 {% endif %}
 {% endblock %}

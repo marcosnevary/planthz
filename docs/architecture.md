@@ -43,6 +43,12 @@ Derived on every read (`store.run_status`), never stored:
 
 A video enters the analysis only if **both** of its runs are `done`, so the plants are always compared on the same videos.
 
+Hiding a plant from a chart's legend on the analysis page only hides its marks: the axes keep the range of both plants.
+
+The per-video chart shows points or a line. As a line it can add a moving average (`analysis.moving_average`): the mean of the plant's videos within a window of 1, 3, 6 or 24 hours centred on each video, so a 3-hour window takes the videos up to 1.5 hours before and after. The window is in time rather than in a number of videos, so a missing video narrows the sample instead of stretching the period. A day without videos breaks the line and the average. `charts.py` renders every view and window, and the browser only switches between them.
+
+The daily chart shades one standard deviation around each plant's daily mean, and its vertical axis covers that band. Hiding the band in the legend moves the chart to an axis that covers only the means: `charts.py` renders both axes, and the browser only switches between them. A day with one video has no standard deviation and adds no height to the band. A day without videos breaks both the line and the band.
+
 ## Disabled days
 
 A job only takes the runs that have a runnable status **and** belong to an enabled day (`Run.runnable`). Disabling a day changes nothing else: its runs keep their status and its existing results stay in the analysis and in `results.csv`.
@@ -112,6 +118,7 @@ A day cannot change while its campaign has an active job, because the worker pic
 - **Exports keep the original absolute paths:** `videos_dir` and `path` are the only link back to the files, and they make an import on the same machine fully working. The cost is that the file reveals the sender's folder names, which the export panel states.
 - **A folder conflict refuses the import instead of merging or renaming:** merging would have to choose between two sets of results for the same run, and a silently renamed folder would break the rule that a folder has one campaign. The user decides by deleting the existing campaign.
 - **Plain SQLite without an ORM:** a handful of tables with one writer at a time.
-- **Charts as inline SVG:** each point links to its video, which turns an odd value into a ROI check in one click.
+- **Charts as inline SVG:** each point links to its video, which turns an odd value into a ROI check in one click. The legend toggles and tooltips are a small script (`static/charts.js`) over that SVG instead of a chart library, which would need a bundle and move the chart calculations out of Python.
+- **Fixed vertical axis when a plant is hidden:** rescaling would make the same difference between plants look larger or smaller from one view to the next. Hiding the band is different: its axis is mostly empty space around the means, so the chart rescales to them.
 - **ROIs drawn by the user, not detected:** this keeps the methodology of the published results. A detected ROI could vary between videos and change the comparison.
 - **htmx is vendored in `static/`:** the application must work without internet access.
