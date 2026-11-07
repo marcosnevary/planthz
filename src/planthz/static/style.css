@@ -77,8 +77,19 @@ p { margin: 0 0 8px; }
   text-decoration: none;
 }
 .sidebar nav a:hover, .campaign-actions a:hover { background: var(--surface-hover); }
-.sidebar-nav a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
-.sidebar-nav a[aria-current="page"]:hover { background: var(--accent); }
+/* Needs .sidebar to outrank the display: block of .sidebar nav a. */
+.sidebar .sidebar-nav a { display: flex; align-items: center; gap: 8px; }
+.nav-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sidebar-nav a[aria-current="page"] { background: var(--surface-hover); font-weight: 600; }
 .sidebar-nav a[aria-disabled="true"], .sidebar-nav a[aria-disabled="true"]:hover { background: none; color: var(--ink-muted); opacity: 0.55; cursor: default; }
 
 .sidebar-foot { margin-top: auto; }
