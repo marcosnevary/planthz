@@ -296,8 +296,6 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 @media (prefers-reduced-motion: reduce) {
   .chart .y-axis { transition: none; }
 }
-.chart .grid { stroke: var(--line); stroke-width: 1; }
-.chart .day-line { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
 .chart .tick { fill: var(--ink-muted); }
 .chart .axis-label { fill: var(--ink-muted); font-weight: 500; }
 .chart .hit { fill: transparent; }

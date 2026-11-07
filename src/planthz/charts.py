@@ -57,9 +57,6 @@ class _Frame:
         for tick in self.y_ticks:
             y = self.y(tick)
             parts.append(
-                f'<line class="grid" x1="{MARGIN["left"]}" x2="{WIDTH - MARGIN["right"]}" y1="{y:.1f}" y2="{y:.1f}"/>'
-            )
-            parts.append(
                 f'<text class="tick" x="{MARGIN["left"] - 8}" y="{y + 4:.1f}" text-anchor="end">{_hz(tick, 1)}</text>'
             )
 
@@ -75,17 +72,13 @@ class _Frame:
         bottom = self.height - MARGIN["bottom"]
         parts = [self.render_y_axis()]
 
-        # Labels are thinned so a long campaign does not collide, while day lines stay.
+        # Labels are thinned so a long campaign does not collide.
         label_every = max(1, math.ceil(self.days / 16))
 
-        for offset in range(self.days + 1):
-            x = self.x(self.start + timedelta(days=offset))
-            parts.append(f'<line class="day-line" x1="{x:.1f}" x2="{x:.1f}" y1="{MARGIN["top"]}" y2="{bottom}"/>')
-
-            if offset < self.days and offset % label_every == 0:
-                noon = self.x(self.start + timedelta(days=offset, hours=12))
-                label = (self.start + timedelta(days=offset)).strftime("%d/%m")
-                parts.append(f'<text class="tick" x="{noon:.1f}" y="{bottom + 20}" text-anchor="middle">{label}</text>')
+        for offset in range(0, self.days, label_every):
+            noon = self.x(self.start + timedelta(days=offset, hours=12))
+            label = (self.start + timedelta(days=offset)).strftime("%d/%m")
+            parts.append(f'<text class="tick" x="{noon:.1f}" y="{bottom + 20}" text-anchor="middle">{label}</text>')
 
         middle_x = (MARGIN["left"] + WIDTH - MARGIN["right"]) / 2
         middle_y = (MARGIN["top"] + bottom) / 2
