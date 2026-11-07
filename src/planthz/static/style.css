@@ -63,8 +63,7 @@ p { margin: 0 0 8px; }
   height: 100vh;
   padding: 16px 12px;
   overflow-y: auto;
-  --control: var(--page);
-  background: var(--surface);
+  background: var(--page);
   border-right: 1px solid var(--line);
 }
 .brand { padding: 0 8px; font-weight: 700; font-size: 20px; color: var(--ink); text-decoration: none; }
