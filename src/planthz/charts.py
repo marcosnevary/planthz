@@ -1,4 +1,7 @@
-"""Inline SVG charts. Each point links to its video, so an odd value leads straight to its ROI."""
+"""Inline SVG charts. Each point links to its video, so an odd value leads straight to its ROI.
+
+`static/charts.js` reads the `data-*` attributes to hide a plant, show tooltips and zoom into a period.
+"""
 
 import math
 from datetime import date, datetime, timedelta
@@ -89,79 +92,78 @@ def _marker(plant_id: int, x: float, y: float, size: float = 3.5) -> str:
     )
 
 
-def _svg(height: int, label: str, content: str) -> str:
-    return f'<svg class="chart" viewBox="0 0 {WIDTH} {height}" role="img" aria-label="{escape(label)}">{content}</svg>'
-
-
-def _shared_axis(rows: pd.DataFrame, height: int) -> _Frame:
-    days = pd.to_datetime(rows["day"])
-
-    return _Frame(
-        days.min().date(),
-        days.max().date(),
-        _nice_ticks(float(rows["frequency"].min()), float(rows["frequency"].max())),
-        height,
+def _svg(frame: _Frame, label: str, content: str) -> str:
+    return (
+        f'<svg class="chart" viewBox="0 0 {WIDTH} {frame.height}" role="img" aria-label="{escape(label)}" '
+        f'data-start="{frame.start:%Y-%m-%d}" data-days="{frame.days}" '
+        f'data-plot-left="{MARGIN["left"]}" data-plot-right="{WIDTH - MARGIN["right"]}">{content}</svg>'
     )
 
 
-def frequency_per_video(rows: pd.DataFrame) -> dict[int, str]:
-    # Same axes on both panels, so a difference between plants is not an autoscale effect.
-    height = 240
-    frame = _shared_axis(rows, height)
-    panels = {}
+def _series(plant_id: int, content: str) -> str:
+    return f'<g class="series" data-plant="{plant_id}">{content}</g>'
+
+
+def y_ticks(values: pd.Series) -> list[float]:
+    return _nice_ticks(float(values.min()), float(values.max()))
+
+
+def frequency_per_video(rows: pd.DataFrame, first_day: date, last_day: date, ticks: list[float]) -> str:
+    frame = _Frame(first_day, last_day, ticks, 280)
+    parts = [frame.render()]
 
     for plant_id in PLANT_IDS:
         points = []
 
         for row in rows[rows["plant_id"] == plant_id].to_dict("records"):
             x, y = frame.x(row["captured_at"]), frame.y(row["frequency"])
-            title = f"{row['captured_at']:%d/%m %H:%M} · {_hz(row['frequency'])} Hz · {row['video']}"
+            tip = f"Planta {plant_id} · {row['captured_at']:%d/%m %H:%M} · {_hz(row['frequency'])} Hz · {row['video']}"
             points.append(
-                f'<a href="/videos/{row["video_id"]}"><title>{escape(title)}</title>'
+                f'<a href="/videos/{row["video_id"]}" data-tip="{escape(tip)}" aria-label="{escape(tip)}">'
                 f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="8"/>{_marker(plant_id, x, y)}</a>'
             )
 
-        panels[plant_id] = _svg(
-            height, f"Frequência dominante por vídeo, Planta {plant_id}", frame.render() + "".join(points)
-        )
+        parts.append(_series(plant_id, "".join(points)))
 
-    return panels
+    return _svg(frame, "Frequência dominante por vídeo e planta", "".join(parts))
 
 
-def daily_means(table: pd.DataFrame) -> str:
-    height = 280
-    frame = _shared_axis(table.rename(columns={"mean": "frequency"}), height)
+def daily_means(table: pd.DataFrame, first_day: date, last_day: date, ticks: list[float]) -> str:
+    frame = _Frame(first_day, last_day, ticks, 280)
     parts = [frame.render()]
 
     for plant_id in PLANT_IDS:
         points = [
-            (datetime.fromisoformat(row["day"]) + timedelta(hours=12), row["mean"], row["size"], row["day"])
+            (datetime.fromisoformat(row["day"]) + timedelta(hours=12), row["mean"], row["size"])
             for row in table[table["plant_id"] == plant_id].to_dict("records")
         ]
 
         if not points:
             continue
 
+        series: list[str] = []
         segment: list[str] = []
         previous_day: datetime | None = None
 
         # A day without videos breaks the line instead of being bridged as if there were data.
-        for moment, value, _, _ in points:
+        for moment, value, _ in points:
             if previous_day is not None and moment - previous_day > timedelta(days=1):
-                parts.append(f'<polyline class="line {PLANT_CLASSES[plant_id]}" points="{" ".join(segment)}"/>')
+                series.append(f'<polyline class="line {PLANT_CLASSES[plant_id]}" points="{" ".join(segment)}"/>')
                 segment = []
 
             segment.append(f"{frame.x(moment):.1f},{frame.y(value):.1f}")
             previous_day = moment
 
-        parts.append(f'<polyline class="line {PLANT_CLASSES[plant_id]}" points="{" ".join(segment)}"/>')
+        series.append(f'<polyline class="line {PLANT_CLASSES[plant_id]}" points="{" ".join(segment)}"/>')
 
-        for moment, value, size, day in points:
+        for moment, value, size in points:
             x, y = frame.x(moment), frame.y(value)
-            title = f"Planta {plant_id} · {day} · {_hz(value)} Hz · {size} vídeo{'s' if size != 1 else ''}"
-            parts.append(
-                f'<g><title>{escape(title)}</title><circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="10"/>'
-                f"{_marker(plant_id, x, y, 4.5)}</g>"
+            tip = f"Planta {plant_id} · {moment:%d/%m} · {_hz(value)} Hz · {size} vídeo{'s' if size != 1 else ''}"
+            series.append(
+                f'<g data-tip="{escape(tip)}" aria-label="{escape(tip)}">'
+                f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="10"/>{_marker(plant_id, x, y, 4.5)}</g>'
             )
 
-    return _svg(height, "Frequência dominante média por dia e planta", "".join(parts))
+        parts.append(_series(plant_id, "".join(series)))
+
+    return _svg(frame, "Frequência dominante média por dia e planta", "".join(parts))

@@ -263,9 +263,27 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .frame-slider { margin-top: 12px; }
 
 /* Analysis */
-.legend { display: flex; gap: 16px; margin: 8px 0 4px; font-size: 12px; }
+.legend { display: flex; gap: 8px; margin: 8px 0 4px; font-size: 12px; }
+.legend-toggle { padding: 4px 10px; font-size: 12px; background: transparent; }
+.legend-toggle[aria-pressed="false"] { color: var(--ink-muted); text-decoration: line-through; }
+.legend-toggle[aria-pressed="false"] .swatch { opacity: 0.3; }
+.period { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
+.chart-tip {
+  position: fixed;
+  z-index: 10;
+  max-width: 320px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
 .axis-caption { margin: 4px 0 12px; font-size: 12px; color: var(--ink-muted); }
-.chart { display: block; width: 100%; height: auto; font-size: 12px; }
+.chart { display: block; width: 100%; height: auto; font-size: 12px; cursor: crosshair; user-select: none; touch-action: pan-y; }
+.chart .series[hidden] { display: none; }
+.chart .selection { fill: var(--accent); fill-opacity: 0.12; }
 .chart .grid { stroke: var(--line); stroke-width: 1; }
 .chart .day-line { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
 .chart .tick { fill: var(--ink-muted); }
@@ -275,6 +293,7 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .chart polyline.line { fill: none; stroke-width: 2; }
 .chart polyline.line.plant-1 { stroke: var(--plant-1); }
 .chart polyline.line.plant-2 { stroke: var(--plant-2); }
+.chart a { cursor: pointer; }
 .chart a:hover circle:not(.hit), .chart a:hover polygon { stroke: var(--ink); stroke-width: 1.5; }
 
 @media (max-width: 900px) {

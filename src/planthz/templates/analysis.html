@@ -1,9 +1,23 @@
 {% extends "base.html" %}
 {% block title %}Análises · {{ campaign.name }}{% endblock %}
 {% block content %}
+{% macro legend() %}
+<div class="legend">
+  {% for plant_id in PLANT_IDS %}
+  <button type="button" class="legend-toggle" data-plant="{{ plant_id }}" aria-pressed="true"><span class="swatch plant-{{ plant_id }}"></span> Planta {{ plant_id }}</button>
+  {% endfor %}
+</div>
+{% endmacro %}
 {% if not has_data %}
 <p class="alert page-alert">Ainda não há vídeos com resultado válido para as duas plantas. <a href="/campaigns/{{ campaign.id }}">Ir para o processamento</a></p>
 {% else %}
+<div id="analysis-content" data-url="/campaigns/{{ campaign.id }}/analysis">
+{% if period %}
+<div class="period">
+  <span>Período: {{ period[0].isoformat()|day }} a {{ period[1].isoformat()|day }}{% if not summary %} · <span class="muted">nenhum vídeo com resultado válido neste período</span>{% endif %}</span>
+  <button type="button" hx-get="/campaigns/{{ campaign.id }}/analysis" hx-target="#analysis-content" hx-select="#analysis-content" hx-swap="outerHTML" hx-replace-url="true">Ver período completo</button>
+</div>
+{% endif %}
 <section class="panel">
   <h2>Resumo por planta</h2>
   <table>
@@ -22,22 +36,17 @@
   </table>
 </section>
 
-<section class="panel">
+<section class="panel chart-panel">
   <h2>Frequência dominante por vídeo</h2>
-  <p class="muted small">Eixos iguais nos dois painéis. Passe o mouse sobre um ponto para ver o valor e clique para abrir o vídeo e conferir o ROI.</p>
-  {% for plant_id in PLANT_IDS %}
-  <h3><span class="swatch plant-{{ plant_id }}"></span> Planta {{ plant_id }}</h3>
-  {{ per_video_charts[plant_id]|safe }}
-  {% endfor %}
+  <p class="muted small">Clique na legenda para ocultar uma planta e arraste sobre o gráfico para ampliar um período. Clique em um ponto para abrir o vídeo e conferir o ROI.</p>
+  {{ legend() }}
+  {{ per_video_chart|safe }}
   <p class="axis-caption">Eixo vertical: frequência dominante (Hz). Eixo horizontal: dia da captura.</p>
 </section>
 
-<section class="panel">
+<section class="panel chart-panel">
   <h2>Média diária</h2>
-  <div class="legend">
-    <span><span class="swatch plant-1"></span> Planta 1</span>
-    <span><span class="swatch plant-2"></span> Planta 2</span>
-  </div>
+  {{ legend() }}
   {{ daily_chart|safe }}
   <p class="axis-caption">Eixo vertical: frequência dominante média (Hz). Dias sem vídeos interrompem a linha.</p>
   <table>
@@ -62,5 +71,7 @@
     </tbody>
   </table>
 </section>
+</div>
+<script src="/static/charts.js" defer></script>
 {% endif %}
 {% endblock %}

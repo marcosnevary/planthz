@@ -1,7 +1,7 @@
 import sqlite3
 from collections import Counter, defaultdict
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated, Any
 from urllib.parse import quote
@@ -535,25 +535,41 @@ def video_frame(
 
 
 @app.get("/campaigns/{campaign_id}/analysis", response_class=HTMLResponse)
-def analysis_page(request: Request, db: Db, campaign_id: int) -> Response:
+def analysis_page(
+    request: Request, db: Db, campaign_id: int, start: date | None = None, end: date | None = None
+) -> Response:
     campaign = require_synced_campaign(db, campaign_id)
     runs = store.list_runs(db, campaign_id)
-    result = analysis_module.build_analysis(runs)
-    has_data = not result.rows.empty
+    whole = analysis_module.build_analysis(runs)
+    has_data = not whole.rows.empty
+    context: dict[str, Any] = {"campaign": campaign, "tab": "analysis", "has_data": has_data, "period": None}
+
+    if not has_data:
+        return templates.TemplateResponse(request, "analysis.html", context)
+
+    first_day = start or date.fromisoformat(whole.rows["day"].min())
+    last_day = end or date.fromisoformat(whole.rows["day"].max())
+    first_day, last_day = min(first_day, last_day), max(first_day, last_day)
+    in_period = [run for run in runs if first_day.isoformat() <= run.video.day <= last_day.isoformat()]
+    result = analysis_module.build_analysis(in_period) if start or end else whole
     daily_by_day: dict[str, dict[int, Any]] = defaultdict(dict)
 
     for row in result.daily_means.to_dict("records"):
         daily_by_day[str(row["day"])][int(row["plant_id"])] = row
 
+    # The y axis comes from the whole campaign, so neither zooming nor hiding a plant rescales it.
     return templates.TemplateResponse(
         request,
         "analysis.html",
-        {
-            "campaign": campaign,
-            "tab": "analysis",
-            "has_data": has_data,
-            "per_video_charts": charts.frequency_per_video(result.rows) if has_data else {},
-            "daily_chart": charts.daily_means(result.daily_means) if has_data else "",
+        context
+        | {
+            "period": (first_day, last_day) if start or end else None,
+            "per_video_chart": charts.frequency_per_video(
+                result.rows, first_day, last_day, charts.y_ticks(whole.rows["frequency"])
+            ),
+            "daily_chart": charts.daily_means(
+                result.daily_means, first_day, last_day, charts.y_ticks(whole.daily_means["mean"])
+            ),
             "summary": list(result.plant_summary.itertuples()),
             "daily_rows": sorted(daily_by_day.items()),
         },
