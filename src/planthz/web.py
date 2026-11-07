@@ -552,6 +552,7 @@ def analysis_page(request: Request, db: Db, campaign_id: int) -> Response:
             "per_video_chart": charts.frequency_per_video(result.rows) if has_data else "",
             "daily_chart": charts.daily_means(result.daily_means) if has_data else "",
             "summary": list(result.plant_summary.itertuples()),
+            "video_count": result.video_count,
         },
     )
 

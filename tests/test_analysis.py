@@ -45,6 +45,7 @@ def test_plant_summary_and_daily_means() -> None:
     assert analysis.plant_summary.loc[1, "mean"] == pytest.approx(4.0)
     assert analysis.plant_summary.loc[2, "median"] == pytest.approx(5.0)
     assert analysis.plant_summary.loc[1, "size"] == 3
+    assert analysis.video_count == 3
 
     day_one = analysis.daily_means[
         (analysis.daily_means["day"] == "2026-10-29") & (analysis.daily_means["plant_id"] == 1)

@@ -17,6 +17,7 @@ class Analysis:
     rows: pd.DataFrame
     plant_summary: pd.DataFrame
     daily_means: pd.DataFrame
+    video_count: int
 
 
 def valid_rows(runs: list[Run]) -> pd.DataFrame:
@@ -55,6 +56,7 @@ def build_analysis(runs: list[Run]) -> Analysis:
         daily_means=(
             rows.groupby(["day", "plant_id"])["frequency"].agg(["mean", "std", "size"]).reset_index().sort_values("day")
         ),
+        video_count=rows["video_id"].nunique(),
     )
 
 
