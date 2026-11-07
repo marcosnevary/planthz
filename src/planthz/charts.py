@@ -57,6 +57,9 @@ class _Frame:
         for tick in self.y_ticks:
             y = self.y(tick)
             parts.append(
+                f'<line class="grid" x1="{MARGIN["left"]}" x2="{WIDTH - MARGIN["right"]}" y1="{y:.1f}" y2="{y:.1f}"/>'
+            )
+            parts.append(
                 f'<text class="tick" x="{MARGIN["left"] - 8}" y="{y + 4:.1f}" text-anchor="end">{_hz(tick, 1)}</text>'
             )
 

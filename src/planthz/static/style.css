@@ -286,6 +286,7 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 }
 .chart-tip::first-line { font-weight: 600; }
 .chart { display: block; width: 100%; height: auto; margin-bottom: 12px; font-size: 12px; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
 .chart .series[hidden] { display: none; }
 /* Hiding the band moves the daily chart to the axis of the means alone; charts.py computes both. */
 .chart .y-axis { transition: opacity 0.4s ease; }
