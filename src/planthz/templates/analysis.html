@@ -1,12 +1,37 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
 {% block title %}Análises · {{ campaign.name }}{% endblock %}
+{% block sidebar_tools %}
+{% if comparable %}
+<form method="get" action="/campaigns/{{ campaign.id }}/analysis" class="compare-form">
+  <label>Comparar com
+    <select name="compare" autocomplete="off" onchange="this.form.submit()">
+      <option value="">Nenhuma campanha</option>
+      {% for other in comparable %}
+      <option value="{{ other.id }}" {% if other.id|string == compare %}selected{% endif %}>{{ other.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</form>
+{% endif %}
+{% endblock %}
 {% block content %}
+{% macro change(percent) -%}
+{%- set described = percent|change -%}
+{%- if described -%}
+<span class="change" role="img" aria-label="{{ described.label }}" title="{{ described.label }}">{{ icon(described.icon) }}{{ described.amount }}</span>
+{%- else -%}–{%- endif -%}
+{%- endmacro %}
 {% macro legend(with_band=False) %}
 <div class="legend">
   {% for plant_id in PLANT_IDS %}
   <button type="button" class="legend-toggle" data-plant="{{ plant_id }}" aria-pressed="true"><span class="swatch plant-{{ plant_id }}"></span> Planta {{ plant_id }}</button>
   {% endfor %}
+  {% if comparison %}
+  {% for plant_id in PLANT_IDS %}
+  <button type="button" class="legend-toggle" data-plant="{{ plant_id }}" data-compared aria-pressed="true"><span class="swatch plant-{{ plant_id }} compared"></span> Planta {{ plant_id }} · {{ comparison.name }}</button>
+  {% endfor %}
+  {% endif %}
   {% if with_band %}
   <button type="button" class="legend-toggle" data-band aria-pressed="true"><span class="swatch band"></span> Desvio padrão</button>
   {% endif %}
@@ -16,13 +41,19 @@
 <p class="alert page-alert">Ainda não há vídeos com resultado válido para as duas plantas. <a href="/campaigns/{{ campaign.id }}">Ir para o processamento</a></p>
 {% else %}
 <div class="plant-cards">
-  {% for row in summary %}
-  <section class="plant-card plant-{{ row.Index }}">
-    <h2><span class="swatch plant-{{ row.Index }}"></span> Planta {{ row.Index }}</h2>
-    <dl>
-      <dt class="plant-card-mean">Média</dt><dd class="plant-card-mean">{{ row.mean|decimal }} Hz</dd>
-      <dt>Mediana</dt><dd>{{ row.median|decimal }} Hz</dd>
-      <dt>Desvio padrão</dt><dd>{{ row.std|decimal }} Hz</dd>
+  {% for plant_id, stats in summary.items() %}
+  <section class="plant-card plant-{{ plant_id }}">
+    <h2><span class="swatch plant-{{ plant_id }}"></span> Planta {{ plant_id }}</h2>
+    {% if comparison %}<p class="plant-card-caption">Comparada a {{ comparison.name }}</p>{% endif %}
+    <dl{% if comparison %} class="compared"{% endif %}>
+      {% for key, label in [("mean", "Média"), ("median", "Mediana"), ("std", "Desvio padrão")] %}
+      <dt{% if key == "mean" %} class="plant-card-mean"{% endif %}>{{ label }}</dt>
+      <dd{% if key == "mean" %} class="plant-card-mean"{% endif %}>{{ stats[key]|decimal }} Hz</dd>
+      {% if comparison %}
+      <dd>{{ change(changes[plant_id][key]) }}</dd>
+      <dd class="plant-card-compared">({{ compared_summary[plant_id][key]|decimal }} Hz)</dd>
+      {% endif %}
+      {% endfor %}
     </dl>
   </section>
   {% endfor %}

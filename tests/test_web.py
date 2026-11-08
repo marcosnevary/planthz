@@ -251,6 +251,31 @@ def test_full_flow_from_rois_to_analysis(client: TestClient, videos_dir: Path) -
     assert len(export.text.splitlines()) == 7
 
 
+def test_analysis_compares_with_another_campaign(client: TestClient, videos_dir: Path, own_videos: Path) -> None:
+    url = create_campaign(client, videos_dir)
+    other_url = create_campaign(client, own_videos)
+    client.post(f"{url}/rois", data=ROI_FORM)
+    assert 'name="compare"' not in client.get(f"{url}/analysis").text
+
+    run_batch(url)
+    assert 'name="compare"' not in client.get(f"{url}/analysis").text
+
+    client.post(f"{other_url}/rois", data=ROI_FORM)
+    run_batch(other_url)
+    other_id = other_url.rsplit("/", 1)[1]
+
+    alone = client.get(f"{url}/analysis?compare=").text
+    assert 'name="compare"' in alone
+    assert "data-compared" not in alone
+
+    compared = client.get(f"{url}/analysis?compare={other_id}").text
+    assert f'value="{other_id}" selected' in compared
+    assert "Comparada a semana2" in compared
+    assert 'aria-label="igual"' in compared
+    assert "data-compared" in compared
+    assert "Dia da campanha" in compared
+
+
 def test_source_maps_explain_the_stored_result(client: TestClient, own_videos: Path) -> None:
     url = create_campaign(client, own_videos)
     client.post(f"{url}/rois", data=ROI_FORM)

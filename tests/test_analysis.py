@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from planthz import charts
-from planthz.analysis import build_analysis, moving_average, results_csv
+from planthz.analysis import Comparison, build_analysis, moving_average, relative_difference, results_csv
 from planthz.rois import Roi
 from planthz.store import Result, Run, RunStatus, Video, run_status
 
@@ -172,3 +172,34 @@ def test_per_video_chart_breaks_its_lines_at_days_without_videos() -> None:
 
     assert chart.count('class="line raw plant-1"') == 2
     assert chart.count('class="line average plant-1" points') == 2 * 4
+
+
+def test_relative_difference_is_in_percent_of_the_reference() -> None:
+    analysis = build_analysis([make_run(1, 1, 3.0), make_run(1, 2, 2.0)])
+    reference = build_analysis([make_run(2, 1, 2.0), make_run(2, 2, 4.0)])
+
+    changes = relative_difference(analysis.plant_summary[["mean"]], reference.plant_summary[["mean"]])
+
+    assert changes.loc[1, "mean"] == pytest.approx(50.0)
+    assert changes.loc[2, "mean"] == pytest.approx(-50.0)
+
+
+def test_charts_draw_the_compared_campaign_by_day_of_campaign() -> None:
+    analysis = build_analysis([make_run(1, 1, 2.0), make_run(1, 2, 3.0), make_run(2, 1, 2.5, "2026-10-30")])
+    compared = build_analysis(
+        [make_run(3, 1, 4.0, "2026-06-01"), make_run(3, 2, 5.0, "2026-06-01")]
+        + [make_run(4, 1, 4.0, "2026-06-03"), make_run(4, 2, 5.0, "2026-06-03")]
+    )
+    comparison = Comparison("Junho", compared)
+
+    for chart in (
+        charts.frequency_per_video(analysis.rows, comparison),
+        charts.daily_means(analysis.daily_means, comparison),
+    ):
+        assert chart.count("data-compared") == 4
+        assert "Dia da campanha" in chart
+        # The compared campaign lasts three days, so the axis covers them although the analysed one lasts one.
+        assert ">Dia 3</text>" in chart
+        assert "Junho · Planta 1 · 01/06/2026" in chart
+
+    assert "data-compared" not in charts.frequency_per_video(analysis.rows)
