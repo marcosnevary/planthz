@@ -3,7 +3,7 @@
 ## Processes
 
 - **Web server** (`web.py`): FastAPI with Jinja2 templates and HTMX. It binds to localhost only, because it reads any folder the user types.
-- **Worker** (`worker.py`): one process per job, started by `jobs.py` in its own session. It computes the runs one at a time and commits each result together with the job's counters. Each run also stores its source maps and the video's first frame, so the video page can show them after the video leaves the disk.
+- **Worker** (`worker.py`): one process per job, started by `jobs.py` in its own session. It computes the runs one at a time and commits each result together with the job's counters. Each run also stores its source maps and the video's frames, so the video page can show them after the video leaves the disk.
 
 Both talk only through SQLite (`~/.planthz/planthz.db`, in WAL mode). The processing page polls `/campaigns/{id}/progress` every 2 seconds while a job is active.
 
@@ -61,7 +61,7 @@ A day cannot change while its campaign has an active job, because the worker pic
 
 ## Export and import
 
-`transfer.py` writes a campaign to one ZIP file and recreates it from that file, so results can be shared with someone on another machine. The ZIP holds `campaign.json`, below, plus `source_maps/<video>/plant_<n>.npz` for each run without error and `frames/<video>.jpg` for the first frame of each video, as far as this machine has them. The pydantic models in that module are the format of `campaign.json`, both for writing and for validating.
+`transfer.py` writes a campaign to one ZIP file and recreates it from that file, so results can be shared with someone on another machine. The ZIP holds `campaign.json`, below, plus `source_maps/<video>/plant_<n>.npz` for each run without error `frames/<video>.jpg` for the first frame of each video and `reduced_frames/<video>/<position>.jpg` for its reduced frames, as far as this machine has them. The pydantic models in that module are the format of `campaign.json`, both for writing and for validating.
 
 ```json
 {
@@ -100,17 +100,19 @@ A day cannot change while its campaign has an active job, because the worker pic
 - `on_disk`, which describes one machine. An import checks each video's `path` here instead.
 - The `job` table: a pid and a heartbeat mean nothing elsewhere, and its logs stay in the data folder.
 - `run_history`: nothing computed from a campaign depends on it, so the format stays at this version. Each imported result becomes the first entry of its run's history.
-- Video files, and the frames other than the first.
+- Video files, and the full-resolution frames other than the first.
 
 **On a machine without the videos,** a run with a usable result stays `done` or `no_peak`, because `store.run_status` looks at the result before the disk. The analysis, its charts and those runs in `results.csv` therefore match the original exactly. A `failed`, `stale` or `pending` run turns `missing`, since it can only be recomputed from the file, but keeps its stored values and error. The frames, the ROI editor and jobs are unavailable until the videos appear at the same paths. A scan or a started job then finds them and marks them on disk.
 
-**Source maps and frames:** the import validates every attachment before saving anything, and puts them in its own caches under the paths of the export, which are the cache keys. A missing attachment only leaves that map or frame unavailable. They take about 230 KB per processed video, half maps and half frame. The import also accepts a bare `campaign.json`, which is what exports were before the maps, and tells it from a ZIP by its content.
+**Source maps and frames:** the import validates every attachment before saving anything, and puts them in its own caches under the paths of the export, which are the cache keys. A missing attachment only leaves that map or frame unavailable. They take about 500 KB per processed 1920×1080 video: about 230 KB of maps and first frame, and about 270 KB of reduced frames. The import also accepts a bare `campaign.json`, which is what exports were before the maps, and tells it from a ZIP by its content.
 
 **Import is all or nothing:** it runs in one transaction, and any invalid or repeated data leaves the database unchanged. A file whose `videos_dir` already belongs to a campaign is refused, as creating that campaign by hand would be.
 
 ## Frames
 
 `frames.py` caches each extracted frame at full resolution in `~/.planthz/frames`, keyed by video path and position. ROIs are drawn on each request rather than cached, so the picture always shows what the next run would crop. The positions are limited to tenths of the video to keep the cache bounded.
+
+Processing keeps every position of the video, so the slider on the video page still works after the video leaves the disk: the first at full resolution and the other ten reduced to 960 px wide (`frames.keep_frames`), which adds about 2.3 s per 1920×1080 video. A full-resolution frame is used whenever it is cached or the video is on disk. Otherwise the page gets the reduced frame, and the ROIs are drawn scaled by its width over the first frame's, which is the video's. The video page places the source maps by the video's size, taken from the same first frame, rather than by the size of the frame on screen. Only videos processed after this change have reduced frames.
 
 ## Source maps
 
@@ -127,6 +129,7 @@ Only what the page shows is stored: `|weight|` and `|signal|` per source, scaled
 - **Results store the ROI they used:** changing a ROI then invalidates exactly the affected runs, with no manual cleanup.
 - **A disabled day is not a run status:** a status would hide whether a run is pending, failed or stale, which is what the user needs to see when deciding to enable the day again.
 - **Export without the videos:** the videos are too large to keep whole even on the sender's disk, and the person receiving them usually wants the results. A ZIP with a JSON file can be inspected, unlike a copy of the database, which would also bring every other campaign.
+- **Reduced frames for the positions after the first:** they are only looked at, so 960 px is enough, and they take about 27 KB instead of about 237 KB each, 70 MB instead of 620 MB per 264-video campaign. The first frame stays at full resolution, since the source maps are drawn over it.
 - **Every export brings the source maps:** without them the recipient cannot check where a frequency comes from, which is what the maps are for. The cost is size: about 230 KB per processed video instead of about 1 KB, so 60 MB for 264 videos, too large for most email attachments.
 - **Exports keep the original absolute paths:** `videos_dir` and `path` are the only link back to the files, and they make an import on the same machine fully working. The cost is that the file reveals the sender's folder names, which the export panel states.
 - **A folder conflict refuses the import instead of merging or renaming:** merging would have to choose between two sets of results for the same run, and a silently renamed folder would break the rule that a folder has one campaign. The user decides by deleting the existing campaign.

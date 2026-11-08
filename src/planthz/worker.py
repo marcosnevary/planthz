@@ -30,9 +30,9 @@ def run_job(db: sqlite3.Connection, job_id: int) -> None:
             save_result(db, run.video.id, run.plant_id, run.roi, maps.dominant)
 
             # Kept while the video is on disk, so the video page can still draw the maps over it later.
-            # Only the page needs it, so it does not fail a run that already has its result.
+            # Only the page needs them, so they do not fail a run that already has its result.
             with suppress(frames.FrameUnavailable):
-                frames.frame_jpeg(run.video.path, 0)
+                frames.keep_frames(run.video.path)
         except Exception as error:
             # One unreadable video must not end a batch of hundreds.
             failed += 1

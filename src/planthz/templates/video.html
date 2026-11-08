@@ -18,6 +18,7 @@
 
 <div class="frame-stage">
   <img class="video-frame" id="video-frame" src="/videos/{{ video.id }}/frame.jpg" alt="Quadro do vídeo com os ROIs desenhados"
+       {% if video_size %}data-width="{{ video_size[0] }}" data-height="{{ video_size[1] }}"{% endif %}
        onerror="this.alt='O quadro não está disponível: o arquivo não está no disco.'">
   {% for run in runs if run.result and not run.result.error %}
   <canvas class="source-map" id="source-map-{{ run.plant_id }}" hidden

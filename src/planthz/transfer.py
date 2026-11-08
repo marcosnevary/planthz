@@ -1,7 +1,7 @@
 """Writes a campaign to a ZIP file and recreates it from that file, for sharing between machines.
 
 The ZIP holds the campaign as one JSON file, plus the source maps and video frames the video page
-needs to show the maps without the videos. Exports from before the maps are that JSON file alone.
+needs to show the frames and maps without the videos. Exports from before the maps are that JSON file alone.
 """
 
 import json
@@ -160,16 +160,20 @@ def _parse(content: bytes) -> CampaignExport:
 
 @dataclass(frozen=True)
 class _Attachment:
-    """A video's frame (without a ROI) or a run's source maps, as named in the archive."""
+    """A video's frame (without a ROI) or a run's source maps, as named in the archive.
+
+    A frame is the full-resolution first one, or the reduced one of `reduced_position`.
+    """
 
     name: str
     video_path: Path
     roi: Roi | None = None
+    reduced_position: int | None = None
 
     @property
     def cache_path(self) -> Path:
         if self.roi is None:
-            return frames.cache_path(self.video_path, 0)
+            return frames.cache_path(self.video_path, self.reduced_position or 0, self.reduced_position is not None)
 
         return source_maps.cache_path(self.video_path, self.roi)
 
@@ -188,7 +192,7 @@ class _Attachment:
 
     def save(self, content: bytes) -> None:
         if self.roi is None:
-            frames.store_frame(self.video_path, 0, content)
+            frames.store_frame(self.video_path, self.reduced_position or 0, content, self.reduced_position is not None)
         else:
             source_maps.write(self.video_path, self.roi, content)
 
@@ -197,6 +201,9 @@ def _attachments(videos: list[tuple[str, Path, list[tuple[int, Roi]]]]) -> Itera
     """Yield the attachments a list of (video name, path, [(plant, ROI) of each result]) can have."""
     for name, path, results in videos:
         yield _Attachment(f"frames/{name}.jpg", path)
+
+        for position in range(1, frames.MAX_POSITION + 1):
+            yield _Attachment(f"reduced_frames/{name}/{position}.jpg", path, reduced_position=position)
 
         for plant_id, roi in results:
             yield _Attachment(f"source_maps/{name}/plant_{plant_id}.npz", path, roi)
