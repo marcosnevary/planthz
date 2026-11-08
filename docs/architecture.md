@@ -49,6 +49,10 @@ The per-video chart shows points or a line. As a line it can add a moving averag
 
 The daily chart shades one standard deviation around each plant's daily mean, and its vertical axis covers that band. Hiding the band in the legend moves the chart to an axis that covers only the means: `charts.py` renders both axes, and the browser only switches between them. A day with one video has no standard deviation and adds no height to the band. A day without videos breaks both the line and the band.
 
+The analysis page can compare the campaign with another one that has data in its analysis, picked in a selector in the sidebar and kept in the URL (`?compare=<id>`). The other campaign goes through the same rules, so it also counts only the videos with both runs `done`. Each plant card then shows how much its mean, median and standard deviation differ from the same plant in the other campaign, in % of the other campaign's value (`analysis.relative_difference`), next to that value.
+
+In both charts the other campaign is drawn faded and dashed, with its own legend toggles. Both campaigns start on the same column, so the x axis is labelled by day of campaign (`Dia 1`, `Dia 2`…) instead of by date, and spans the longer campaign. Day 1 is the first day with data in each analysis, and a day without videos leaves its column empty instead of moving the following days. Tooltips keep the real dates and name the other campaign.
+
 ## Disabled days
 
 A job only takes the runs that have a runnable status **and** belong to an enabled day (`Run.runnable`). Disabling a day changes nothing else: its runs keep their status and its existing results stay in the analysis and in `results.csv`.
@@ -128,6 +132,7 @@ Only what the page shows is stored: `|weight|` and `|signal|` per source, scaled
 - **A folder conflict refuses the import instead of merging or renaming:** merging would have to choose between two sets of results for the same run, and a silently renamed folder would break the rule that a folder has one campaign. The user decides by deleting the existing campaign.
 - **Plain SQLite without an ORM:** a handful of tables with one writer at a time.
 - **Charts as inline SVG:** each point links to its video, which turns an odd value into a ROI check in one click. The legend toggles and tooltips are a small script (`static/charts.js`) over that SVG instead of a chart library, which would need a bundle and move the chart calculations out of Python.
+- **Campaigns compared by day of campaign:** campaigns rarely overlap in time, so on calendar dates their curves would sit side by side instead of over each other.
 - **Fixed vertical axis when a plant is hidden:** rescaling would make the same difference between plants look larger or smaller from one view to the next. Hiding the band is different: its axis is mostly empty space around the means, so the chart rescales to them.
 - **ROIs drawn by the user, not detected:** this keeps the methodology of the published results. A detected ROI could vary between videos and change the comparison.
 - **Source maps stored as files, not in SQLite:** they are only for inspection and would make the database much larger.

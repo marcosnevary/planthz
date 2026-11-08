@@ -25,6 +25,7 @@
     </nav>
 
     <div class="sidebar-foot">
+      {% block sidebar_tools %}{% endblock %}
       <details class="campaign-menu">
         <summary class="button"><span>{{ campaign.name }} <span class="path">{{ campaign.videos_dir }}</span></span></summary>
         <div class="campaign-menu-body">

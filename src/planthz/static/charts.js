@@ -45,9 +45,13 @@
       return;
     }
 
+    // The compared campaign has its own toggles, so a plant's button leaves the other campaign's series alone.
+    const compared = "compared" in button.dataset;
     panel
       .querySelectorAll(`.series[data-plant="${button.dataset.plant}"]`)
-      .forEach((series) => series.toggleAttribute("hidden", !visible));
+      .forEach((series) => {
+        if ("compared" in series.dataset === compared) series.toggleAttribute("hidden", !visible);
+      });
   });
 
   const showTip = (target, x, y) => {
