@@ -517,6 +517,7 @@ def video_page(request: Request, db: Db, video_id: int) -> Response:
             "previous_id": previous_id,
             "next_id": next_id,
             "max_position": frames.MAX_POSITION,
+            "video_size": frames.video_size(video.path),
         },
     )
 

@@ -15,11 +15,14 @@
   const placeOver = (canvas) => {
     if (!frame.naturalWidth) return;
 
+    // The ROI is in video pixels, and a frame kept after the video left the disk can be smaller than the video.
+    const width = Number(frame.dataset.width) || frame.naturalWidth;
+    const height = Number(frame.dataset.height) || frame.naturalHeight;
     const percent = (value, total) => `${(value / total) * 100}%`;
-    canvas.style.left = percent(canvas.dataset.x, frame.naturalWidth);
-    canvas.style.top = percent(canvas.dataset.y, frame.naturalHeight);
-    canvas.style.width = percent(canvas.dataset.w, frame.naturalWidth);
-    canvas.style.height = percent(canvas.dataset.h, frame.naturalHeight);
+    canvas.style.left = percent(canvas.dataset.x, width);
+    canvas.style.top = percent(canvas.dataset.y, height);
+    canvas.style.width = percent(canvas.dataset.w, width);
+    canvas.style.height = percent(canvas.dataset.h, height);
   };
 
   const loadWeights = async (url) => {

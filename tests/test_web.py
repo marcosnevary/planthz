@@ -8,7 +8,7 @@ import pytest
 from conftest import HEIGHT, WIDTH
 from fastapi.testclient import TestClient
 
-from planthz import store, worker
+from planthz import frames, store, worker
 from planthz.db import connect
 from planthz.web import app
 
@@ -272,7 +272,7 @@ def test_source_maps_explain_the_stored_result(client: TestClient, own_videos: P
     assert client.get(f"/videos/{video_id}/plants/1/sources/10.png").status_code == 404
 
 
-def test_processing_keeps_the_source_maps_and_frame_for_when_the_video_leaves_the_disk(
+def test_processing_keeps_the_source_maps_and_frames_for_when_the_video_leaves_the_disk(
     client: TestClient, own_videos: Path, data_dir: Path
 ) -> None:
     url = create_campaign(client, own_videos)
@@ -283,7 +283,10 @@ def test_processing_keeps_the_source_maps_and_frame_for_when_the_video_leaves_th
     for video in own_videos.rglob("*.mp4"):
         video.unlink()
 
-    assert client.get(f"/videos/{video_id}/frame.jpg").status_code == 200
+    for position in range(frames.MAX_POSITION + 1):
+        assert client.get(f"/videos/{video_id}/frame.jpg?position={position}").status_code == 200
+    # The source maps are placed in video pixels, which the reduced frames no longer give.
+    assert f'data-width="{WIDTH}" data-height="{HEIGHT}"' in client.get(f"/videos/{video_id}").text
 
     for plant_id in (1, 2):
         assert len(client.get(f"/videos/{video_id}/plants/{plant_id}/sources.json").json()["sources"]) == 10

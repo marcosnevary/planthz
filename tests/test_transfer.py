@@ -303,12 +303,14 @@ def test_the_export_brings_the_source_maps_and_frames_to_a_machine_without_the_v
     assert response.headers["content-disposition"] == "attachment; filename*=UTF-8''semana2_campaign.zip"
     assert sum(name.startswith("source_maps/") for name in archive.namelist()) == 6
     assert sum(name.startswith("frames/") for name in archive.namelist()) == 3
+    assert sum(name.startswith("reduced_frames/") for name in archive.namelist()) == 30
 
     move_to_another_machine(monkeypatch, tmp_path, own_videos)
     imported = import_file(client, response.content).headers["location"]
     video_id = first_video_id(client, imported.removesuffix("/analysis"))
 
     assert client.get(f"/videos/{video_id}/frame.jpg").status_code == 200
+    assert client.get(f"/videos/{video_id}/frame.jpg?position=10").status_code == 200
     assert len(client.get(f"/videos/{video_id}/plants/1/sources.json").json()["sources"]) == 10
 
 
