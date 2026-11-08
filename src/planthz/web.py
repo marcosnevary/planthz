@@ -1,3 +1,4 @@
+import math
 import os
 import sqlite3
 import tempfile
@@ -5,7 +6,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, NamedTuple
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
@@ -80,6 +81,30 @@ def decimal(value: float | None, decimals: int = 3) -> str:
     return f"{value:.{decimals}f}".replace(".", ",")
 
 
+class Change(NamedTuple):
+    icon: str
+    amount: str
+    # Spoken and shown on hover, since the icon alone carries the direction.
+    label: str
+
+
+def change(percent: float) -> Change | None:
+    """Describe a relative difference, such as one from `analysis.relative_difference`, for `analysis.html`."""
+    if not math.isfinite(percent):
+        return None
+
+    if round(percent, 1) == 0:
+        return Change("equal", "", "igual")
+
+    amount = f"{decimal(abs(percent), 1)}%"
+
+    return (
+        Change("arrow-up", amount, f"{amount} maior")
+        if percent > 0
+        else Change("arrow-down", amount, f"{amount} menor")
+    )
+
+
 def duration(seconds: float | None) -> str:
     if seconds is None:
         return "calculando…"
@@ -96,6 +121,7 @@ def duration(seconds: float | None) -> str:
 
 templates.env.filters["decimal"] = decimal
 templates.env.filters["duration"] = duration
+templates.env.filters["change"] = change
 templates.env.filters["day"] = lambda day: f"{day[8:10]}/{day[5:7]}/{day[:4]}"
 templates.env.filters["moment"] = lambda moment: datetime.fromisoformat(moment).strftime("%d/%m/%Y %H:%M:%S")
 templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
@@ -592,12 +618,45 @@ def video_source_map(db: Db, video_id: int, plant_id: int, source: int) -> Respo
 # --- Analysis ----------------------------------------------------------------------------------
 
 
+def _comparable_campaigns(
+    db: sqlite3.Connection, campaign_id: int
+) -> list[tuple[sqlite3.Row, analysis_module.Analysis]]:
+    """Return the other campaigns with videos in their analysis, each with that analysis."""
+    others = [
+        (other, analysis_module.build_analysis(store.list_runs(db, other["id"])))
+        for other in store.list_campaigns(db)
+        if other["id"] != campaign_id
+    ]
+
+    return [(other, analysis) for other, analysis in others if not analysis.rows.empty]
+
+
 @app.get("/campaigns/{campaign_id}/analysis", response_class=HTMLResponse)
-def analysis_page(request: Request, db: Db, campaign_id: int) -> Response:
+def analysis_page(request: Request, db: Db, campaign_id: int, compare: str = "") -> Response:
     campaign = require_synced_campaign(db, campaign_id)
     runs = store.list_runs(db, campaign_id)
     result = analysis_module.build_analysis(runs)
     has_data = not result.rows.empty
+    comparable = _comparable_campaigns(db, campaign_id) if has_data else []
+    # `compare` is a string because "Nenhuma campanha" sends an empty value; an unknown id shows no comparison.
+    comparison = next(
+        (
+            analysis_module.Comparison(other["name"], analysis)
+            for other, analysis in comparable
+            if str(other["id"]) == compare
+        ),
+        None,
+    )
+    context: dict[str, Any] = {}
+
+    if comparison is not None:
+        stats = ["mean", "median", "std"]
+        compared_summary = comparison.analysis.plant_summary[stats]
+        changes = analysis_module.relative_difference(result.plant_summary[stats], compared_summary)
+        context = {
+            "compared_summary": compared_summary.to_dict("index"),
+            "changes": changes.to_dict("index"),
+        }
 
     return templates.TemplateResponse(
         request,
@@ -606,10 +665,14 @@ def analysis_page(request: Request, db: Db, campaign_id: int) -> Response:
             "campaign": campaign,
             "tab": "analysis",
             "has_data": has_data,
-            "per_video_chart": charts.frequency_per_video(result.rows) if has_data else "",
-            "daily_chart": charts.daily_means(result.daily_means) if has_data else "",
-            "summary": list(result.plant_summary.itertuples()),
+            "per_video_chart": charts.frequency_per_video(result.rows, comparison) if has_data else "",
+            "daily_chart": charts.daily_means(result.daily_means, comparison) if has_data else "",
+            "summary": result.plant_summary.to_dict("index"),
             "video_count": result.video_count,
+            "comparable": [other for other, _ in comparable],
+            "compare": compare if comparison else "",
+            "comparison": comparison,
+            **context,
         },
     )
 

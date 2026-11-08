@@ -4,12 +4,14 @@
 """
 
 import math
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from html import escape
+from typing import NamedTuple
 
 import pandas as pd
 
-from planthz.analysis import MOVING_AVERAGE_HOURS, moving_average
+from planthz.analysis import MOVING_AVERAGE_HOURS, Analysis, Comparison, moving_average
 from planthz.rois import PLANT_IDS
 
 WIDTH = 1040
@@ -32,14 +34,20 @@ def _hz(value: float, decimals: int = 2) -> str:
 
 
 class _Frame:
-    """The axes of a chart: time on x, with one column per day, and frequency on y."""
+    """The axes of a chart: time on x, with one column per day, and frequency on y.
 
-    def __init__(self, first_day: date, last_day: date, y_ticks: list[float], height: int, y_label: str):
+    With `numbered_days` the columns are labelled by day of campaign instead of by date.
+    """
+
+    def __init__(
+        self, first_day: date, last_day: date, y_ticks: list[float], height: int, y_label: str, numbered_days: bool
+    ):
         self.start = datetime.combine(first_day, datetime.min.time())
         self.days = (last_day - first_day).days + 1
         self.y_ticks = y_ticks
         self.height = height
         self.y_label = y_label
+        self.numbered_days = numbered_days
 
     def x(self, moment: datetime) -> float:
         fraction = (moment - self.start).total_seconds() / (self.days * 86400)
@@ -84,15 +92,16 @@ class _Frame:
         label_every = max(1, math.ceil(self.days / 16))
 
         for offset in range(0, self.days, label_every):
-            noon = self.x(self.start + timedelta(days=offset, hours=12))
-            label = (self.start + timedelta(days=offset)).strftime("%d/%m")
+            day = self.start + timedelta(days=offset)
+            noon = self.x(day + timedelta(hours=12))
+            label = f"Dia {offset + 1}" if self.numbered_days else day.strftime("%d/%m")
             parts.append(f'<text class="tick" x="{noon:.1f}" y="{bottom + 20}" text-anchor="middle">{label}</text>')
 
         middle_x = (MARGIN["left"] + WIDTH - MARGIN["right"]) / 2
         middle_y = (MARGIN["top"] + bottom) / 2
         parts.append(
             f'<text class="axis-label" x="{middle_x:.1f}" y="{self.height - 6}" text-anchor="middle">'
-            "Dia da captura</text>"
+            f"{'Dia da campanha' if self.numbered_days else 'Dia da captura'}</text>"
         )
         parts.append(
             f'<text class="axis-label" transform="translate(16 {middle_y:.1f}) rotate(-90)" text-anchor="middle">'
@@ -125,8 +134,34 @@ def _svg(height: int, label: str, content: str, style: str = "") -> str:
     )
 
 
-def _shared_axis(days: pd.Series, values: pd.Series, height: int, y_label: str) -> _Frame:
-    moments = pd.to_datetime(days)
+class _Campaign(NamedTuple):
+    table: pd.DataFrame
+    # Moves the campaign onto the days of the analysed one, so a comparison is drawn by day of campaign.
+    shift: timedelta
+    # Only the compared campaign is named, in its tooltips.
+    name: str | None
+
+    @property
+    def days(self) -> pd.Series:
+        return pd.to_datetime(self.table["day"]) + self.shift
+
+
+def _campaigns(
+    table: pd.DataFrame, comparison: Comparison | None, compared_table: Callable[[Analysis], pd.DataFrame]
+) -> list[_Campaign]:
+    """Return the campaigns a chart draws, the compared one first so the analysed one is drawn over it."""
+    campaigns = [_Campaign(table, timedelta(0), None)]
+
+    if comparison is not None:
+        compared = compared_table(comparison.analysis)
+        shift = pd.to_datetime(table["day"]).min() - pd.to_datetime(compared["day"]).min()
+        campaigns.insert(0, _Campaign(compared, shift.to_pytimedelta(), comparison.name))
+
+    return campaigns
+
+
+def _shared_axis(campaigns: list[_Campaign], values: pd.Series, height: int, y_label: str) -> _Frame:
+    moments = pd.concat([campaign.days for campaign in campaigns])
 
     return _Frame(
         moments.min().date(),
@@ -134,11 +169,21 @@ def _shared_axis(days: pd.Series, values: pd.Series, height: int, y_label: str) 
         _nice_ticks(float(values.min()), float(values.max())),
         height,
         y_label,
+        numbered_days=len(campaigns) > 1,
     )
 
 
-def _series(plant_id: int, content: str) -> str:
-    return f'<g class="series" data-plant="{plant_id}">{content}</g>'
+def _series(plant_id: int, content: str, campaign: _Campaign) -> str:
+    if campaign.name is None:
+        return f'<g class="series" data-plant="{plant_id}">{content}</g>'
+
+    return f'<g class="series compared" data-plant="{plant_id}" data-compared>{content}</g>'
+
+
+def _tip_title(plant_id: int, when: str, campaign: _Campaign) -> str:
+    title = f"Planta {plant_id} · {when}"
+
+    return title if campaign.name is None else f"{campaign.name} · {title}"
 
 
 def _split_at_missing_days(moments: list[datetime]) -> list[slice]:
@@ -155,109 +200,127 @@ def _polyline(css_class: str, xs: list[float], ys: list[float], attributes: str 
     return f'<polyline class="{css_class}" points="{points}"{attributes}/>'
 
 
-def frequency_per_video(rows: pd.DataFrame) -> str:
-    # Both plants share the axes, so hiding one in the legend never rescales the other.
-    frame = _shared_axis(rows["day"], rows["frequency"], 300, "Frequência dominante (Hz)")
-    shapes: list[str] = []
-    markers: list[str] = []
+def _video_series(frame: _Frame, campaign: _Campaign, plant_id: int) -> tuple[str, str]:
+    """Return the shapes and the markers of one plant of a campaign on the per-video chart."""
+    plant_rows = campaign.table[campaign.table["plant_id"] == plant_id].sort_values("captured_at")
+    records = plant_rows.to_dict("records")
+    moments = [row["captured_at"] + campaign.shift for row in records]
+    xs = [frame.x(moment) for moment in moments]
+    runs = _split_at_missing_days(moments)
+    css_class = PLANT_CLASSES[plant_id]
+    # The line and the moving averages are drawn for every view; charts.js only shows the chosen one.
+    shapes = [
+        _polyline(f"line raw {css_class}", xs[run], [frame.y(row["frequency"]) for row in records[run]]) for run in runs
+    ]
 
-    for plant_id in PLANT_IDS:
-        plant_rows = rows[rows["plant_id"] == plant_id].sort_values("captured_at")
-        records = plant_rows.to_dict("records")
-        moments = [row["captured_at"] for row in records]
-        xs = [frame.x(moment) for moment in moments]
-        runs = _split_at_missing_days(moments)
-        css_class = PLANT_CLASSES[plant_id]
-        # The line and the moving averages are drawn for every view; charts.js only shows the chosen one.
-        plant_shapes = [
-            _polyline(f"line raw {css_class}", xs[run], [frame.y(row["frequency"]) for row in records[run]])
+    for hours in MOVING_AVERAGE_HOURS:
+        means = [frame.y(mean) for mean in moving_average(plant_rows, hours)]
+        shapes += [
+            _polyline(f"line average {css_class}", xs[run], means[run], f' data-window="{hours}" hidden')
             for run in runs
         ]
 
-        for hours in MOVING_AVERAGE_HOURS:
-            means = [frame.y(mean) for mean in moving_average(plant_rows, hours)]
-            plant_shapes += [
-                _polyline(f"line average {css_class}", xs[run], means[run], f' data-window="{hours}" hidden')
-                for run in runs
+    markers = []
+
+    for row, x in zip(records, xs, strict=True):
+        y = frame.y(row["frequency"])
+        tip = "\n".join(
+            [
+                _tip_title(plant_id, f"{row['captured_at']:%d/%m/%Y %H:%M}", campaign),
+                f"Frequência: {_hz(row['frequency'])} Hz",
+                f"Amplitude: {'–' if pd.isna(row['amplitude']) else _hz(row['amplitude'], 1)}",
+                f"Fonte: {'–' if pd.isna(row['source']) else int(row['source'])}",
+                f"ROI aplicado: {row['roi']}",
+                f"Vídeo: {row['video']}",
             ]
+        )
+        markers.append(
+            f'<a href="/videos/{row["video_id"]}" data-tip="{escape(tip)}" aria-label="{escape(tip)}">'
+            f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="8"/>{_marker(plant_id, x, y)}</a>'
+        )
 
-        plant_markers = []
+    return _series(plant_id, "".join(shapes), campaign), _series(plant_id, "".join(markers), campaign)
 
-        for row, x in zip(records, xs, strict=True):
-            y = frame.y(row["frequency"])
-            tip = "\n".join(
-                [
-                    f"Planta {plant_id} · {row['captured_at']:%d/%m/%Y %H:%M}",
-                    f"Frequência: {_hz(row['frequency'])} Hz",
-                    f"Amplitude: {'–' if pd.isna(row['amplitude']) else _hz(row['amplitude'], 1)}",
-                    f"Fonte: {'–' if pd.isna(row['source']) else int(row['source'])}",
-                    f"ROI aplicado: {row['roi']}",
-                    f"Vídeo: {row['video']}",
-                ]
-            )
-            plant_markers.append(
-                f'<a href="/videos/{row["video_id"]}" data-tip="{escape(tip)}" aria-label="{escape(tip)}">'
-                f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="8"/>{_marker(plant_id, x, y)}</a>'
-            )
 
-        shapes.append(_series(plant_id, "".join(plant_shapes)))
-        markers.append(_series(plant_id, "".join(plant_markers)))
+def frequency_per_video(rows: pd.DataFrame, comparison: Comparison | None = None) -> str:
+    campaigns = _campaigns(rows, comparison, lambda analysis: analysis.rows)
+    frequencies = pd.concat([campaign.table["frequency"] for campaign in campaigns])
+    # Both plants share the axes, so hiding one in the legend never rescales the other.
+    frame = _shared_axis(campaigns, frequencies, 300, "Frequência dominante (Hz)")
+    shapes: list[str] = []
+    markers: list[str] = []
+
+    for campaign in campaigns:
+        for plant_id in PLANT_IDS:
+            plant_shapes, plant_markers = _video_series(frame, campaign, plant_id)
+            shapes.append(plant_shapes)
+            markers.append(plant_markers)
 
     return _svg(frame.height, "Frequência dominante por vídeo e planta", frame.render() + "".join(shapes + markers))
 
 
-def daily_means(table: pd.DataFrame) -> str:
+def _daily_series(frame: _Frame, without_band: _Frame, campaign: _Campaign, plant_id: int) -> tuple[str, str]:
+    """Return the shapes and the markers of one plant of a campaign on the daily chart."""
+    points = [
+        (datetime.fromisoformat(row["day"]) + timedelta(hours=12), row["mean"], row["std"], row["size"])
+        for row in campaign.table[campaign.table["plant_id"] == plant_id].to_dict("records")
+    ]
+
+    if not points:
+        return "", ""
+
+    moments = [moment + campaign.shift for moment, _, _, _ in points]
+    xs = [frame.x(moment) for moment in moments]
+    means = [value for _, value, _, _ in points]
+    spreads = [0.0 if pd.isna(std) else std for _, _, std, _ in points]
+    shapes: list[str] = []
+    markers: list[str] = []
+    css_class = PLANT_CLASSES[plant_id]
+
+    for run in _split_at_missing_days(moments):
+        upper = [f"{x:.1f},{frame.y(m + s):.1f}" for x, m, s in zip(xs[run], means[run], spreads[run], strict=True)]
+        lower = [f"{x:.1f},{frame.y(m - s):.1f}" for x, m, s in zip(xs[run], means[run], spreads[run], strict=True)]
+        shapes.append(f'<polygon class="band {css_class}" points="{" ".join(upper + lower[::-1])}"/>')
+        shapes.append(_polyline(f"line {css_class}", xs[run], [frame.y(m) for m in means[run]]))
+
+    for (moment, value, std, size), x in zip(points, xs, strict=True):
+        y = frame.y(value)
+        tip = "\n".join(
+            [
+                _tip_title(plant_id, f"{moment:%d/%m/%Y}", campaign),
+                f"Média: {_hz(value, 3)} Hz",
+                f"Desvio padrão: {'—' if pd.isna(std) else f'{_hz(std, 3)} Hz'}",
+                f"Vídeos: {size}",
+            ]
+        )
+        # Markers move with a translation rather than the scale, which would flatten them.
+        shift = without_band.y(value) - y
+        markers.append(
+            f'<g class="point" style="--shift: {shift:.1f}px" data-tip="{escape(tip)}" aria-label="{escape(tip)}">'
+            f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="10"/>{_marker(plant_id, x, y, 4.5)}</g>'
+        )
+
+    return _series(plant_id, "".join(shapes), campaign), _series(plant_id, "".join(markers), campaign)
+
+
+def daily_means(table: pd.DataFrame, comparison: Comparison | None = None) -> str:
+    campaigns = _campaigns(table, comparison, lambda analysis: analysis.daily_means)
+    means = pd.concat([campaign.table["mean"] for campaign in campaigns])
     # A day with a single video has no standard deviation, so its band has no height.
-    spread = table["std"].fillna(0)
+    spread = pd.concat([campaign.table["std"] for campaign in campaigns]).fillna(0)
     y_label = "Frequência dominante média (Hz)"
-    frame = _shared_axis(table["day"], pd.concat([table["mean"] - spread, table["mean"] + spread]), 300, y_label)
+    frame = _shared_axis(campaigns, pd.concat([means - spread, means + spread]), 300, y_label)
     # The axis of the means alone, which the chart moves to when the legend hides the band.
-    without_band = _shared_axis(table["day"], table["mean"], 300, y_label)
+    without_band = _shared_axis(campaigns, means, 300, y_label)
     scale, offset = frame.rescaled_to(without_band)
     shapes: list[str] = []
     markers: list[str] = []
 
-    for plant_id in PLANT_IDS:
-        points = [
-            (datetime.fromisoformat(row["day"]) + timedelta(hours=12), row["mean"], row["std"], row["size"])
-            for row in table[table["plant_id"] == plant_id].to_dict("records")
-        ]
-
-        if not points:
-            continue
-
-        xs = [frame.x(moment) for moment, _, _, _ in points]
-        means = [value for _, value, _, _ in points]
-        spreads = [0.0 if pd.isna(std) else std for _, _, std, _ in points]
-        plant_shapes: list[str] = []
-        plant_markers: list[str] = []
-        css_class = PLANT_CLASSES[plant_id]
-
-        for run in _split_at_missing_days([moment for moment, _, _, _ in points]):
-            upper = [f"{x:.1f},{frame.y(m + s):.1f}" for x, m, s in zip(xs[run], means[run], spreads[run], strict=True)]
-            lower = [f"{x:.1f},{frame.y(m - s):.1f}" for x, m, s in zip(xs[run], means[run], spreads[run], strict=True)]
-            plant_shapes.append(f'<polygon class="band {css_class}" points="{" ".join(upper + lower[::-1])}"/>')
-            plant_shapes.append(_polyline(f"line {css_class}", xs[run], [frame.y(m) for m in means[run]]))
-
-        for moment, value, std, size in points:
-            x, y = frame.x(moment), frame.y(value)
-            tip = "\n".join(
-                [
-                    f"Planta {plant_id} · {moment:%d/%m/%Y}",
-                    f"Média: {_hz(value, 3)} Hz",
-                    f"Desvio padrão: {'—' if pd.isna(std) else f'{_hz(std, 3)} Hz'}",
-                    f"Vídeos: {size}",
-                ]
-            )
-            # Markers move with a translation rather than the scale, which would flatten them.
-            shift = without_band.y(value) - y
-            plant_markers.append(
-                f'<g class="point" style="--shift: {shift:.1f}px" data-tip="{escape(tip)}" aria-label="{escape(tip)}">'
-                f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="10"/>{_marker(plant_id, x, y, 4.5)}</g>'
-            )
-
-        shapes.append(_series(plant_id, "".join(plant_shapes)))
-        markers.append(_series(plant_id, "".join(plant_markers)))
+    for campaign in campaigns:
+        for plant_id in PLANT_IDS:
+            plant_shapes, plant_markers = _daily_series(frame, without_band, campaign, plant_id)
+            shapes.append(plant_shapes)
+            markers.append(plant_markers)
 
     # Both plants share each day's x, so every marker goes above every band and line, where it can be hovered.
     return _svg(

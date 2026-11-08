@@ -96,6 +96,7 @@ p { margin: 0 0 8px; }
 .sidebar-nav a[aria-disabled="true"], .sidebar-nav a[aria-disabled="true"]:hover { background: none; color: var(--ink-muted); opacity: 0.55; cursor: default; }
 
 .sidebar-foot { margin-top: auto; }
+.compare-form { margin-bottom: 12px; }
 
 .campaign-menu { position: relative; }
 .campaign-menu summary {
@@ -299,6 +300,8 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .swatch.plant-1 { background: var(--plant-1); border-radius: 50%; }
 .swatch.plant-2 { background: var(--plant-2); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .swatch.band { background: var(--ink-muted); opacity: 0.3; border-radius: 2px; }
+/* The compared campaign is faded and dashed, keeping the plant's colour and shape. */
+.swatch.compared { opacity: 0.45; }
 
 /* Plant summary */
 .plant-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 16px; }
@@ -308,9 +311,15 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .plant-card h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 20px; }
 .plant-card .swatch { background: currentColor; }
 .plant-card dt { opacity: 0.8; }
-.plant-card dl { display: grid; grid-template-columns: auto auto; gap: 4px 16px; margin: 12px 0 0; font-size: 14px; }
+.plant-card dl { display: grid; grid-template-columns: auto auto; gap: 4px 16px; align-items: baseline; margin: 12px 0 0; font-size: 14px; }
 .plant-card dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .plant-card .plant-card-mean { font-size: 16px; font-weight: 600; }
+.plant-card-caption { margin: 4px 0 0; font-size: 12px; opacity: 0.8; }
+/* The change and the other campaign's value get their own columns, so the percentages line up from row to row. */
+.plant-card dl.compared { grid-template-columns: 1fr auto auto auto; column-gap: 12px; }
+.plant-card-compared { opacity: 0.8; }
+.change { white-space: nowrap; }
+.change .icon { width: 14px; height: 14px; margin-right: 2px; vertical-align: -2px; }
 
 /* ROI editor */
 .roi-editor { display: grid; grid-template-columns: minmax(0, 1fr) 280px; align-items: start; gap: 20px; }
@@ -384,11 +393,12 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .source-origin-actions label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 400; }
 
 /* Analysis */
-.legend { display: flex; gap: 8px; margin: 8px 0 4px; font-size: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px; font-size: 12px; }
 .legend-toggle { padding: 4px 10px; font-size: 12px; background: transparent; }
 .legend-toggle[aria-pressed="false"] { color: var(--ink-muted); }
 .legend-toggle[aria-pressed="false"] .swatch { opacity: 0.3; }
 .legend-toggle[aria-pressed="false"] .swatch.band { opacity: 0.1; }
+.legend-toggle[aria-pressed="false"] .swatch.compared { opacity: 0.15; }
 .chart-tip {
   position: fixed;
   z-index: 10;
@@ -437,6 +447,9 @@ tbody tr:hover td:last-child { border-radius: 0 6px 6px 0; }
 .chart polygon.band { fill-opacity: 0.15; pointer-events: none; }
 .chart polyline.line.plant-1 { stroke: var(--plant-1); }
 .chart polyline.line.plant-2 { stroke: var(--plant-2); }
+.chart .compared polyline.line { stroke-dasharray: 6 4; }
+.chart .compared :is(circle, polygon):not(.hit, .band) { fill-opacity: 0.45; }
+.chart .compared polygon.band { fill-opacity: 0.08; }
 .chart a:hover circle:not(.hit), .chart a:hover polygon { stroke: var(--ink); stroke-width: 1.5; }
 
 @media (max-width: 900px) {

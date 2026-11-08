@@ -20,6 +20,14 @@ class Analysis:
     video_count: int
 
 
+@dataclass(frozen=True)
+class Comparison:
+    """Another campaign shown next to the analysed one."""
+
+    name: str
+    analysis: Analysis
+
+
 def valid_rows(runs: list[Run]) -> pd.DataFrame:
     """Return the rows of the videos with a result for both plants.
 
@@ -61,6 +69,11 @@ def build_analysis(runs: list[Run]) -> Analysis:
         ),
         video_count=rows["video_id"].nunique(),
     )
+
+
+def relative_difference(values: pd.DataFrame, reference: pd.DataFrame) -> pd.DataFrame:
+    """Return how much each value differs from the same cell of `reference`, in % of `reference`."""
+    return (values - reference) / reference * 100
 
 
 def moving_average(rows: pd.DataFrame, hours: int) -> pd.Series:
